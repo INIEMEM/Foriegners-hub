@@ -1,26 +1,111 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-brand-DEFAULT: #315CFF;
+  --color-brand-light: #EEF3FF;
+  --color-brand-dark: #2147D8;
+  --color-brand: #315CFF;
+
+  --color-green-DEFAULT: #16A34A;
+  --color-green-light: #F0FDF4;
+  --color-green-dark: #15803D;
+  --color-green: #16A34A;
+
+  --color-orange-DEFAULT: #EA580C;
+  --color-orange-light: #FFF7ED;
+  --color-orange-dark: #C2410C;
+  --color-orange: #EA580C;
+
+  --color-danger-DEFAULT: #DC2626;
+  --color-danger-light: #FEF2F2;
+  --color-danger-dark: #B91C1C;
+  --color-danger: #DC2626;
+
+  --font-sans: var(--font-plus-jakarta-sans), system-ui, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
   }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background:
+      radial-gradient(circle at 16% 8%, rgba(49, 92, 255, 0.08), transparent 26rem),
+      linear-gradient(180deg, #fbfcff 0%, #f7f9fc 44%, #ffffff 100%);
+    color: var(--color-slate-900);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.6;
+  }
+
+  /* Focus ring — consistent across all interactive elements */
+  :focus-visible {
+    outline: none;
+    --tw-ring-color: var(--color-brand);
+    --tw-ring-offset-width: 2px;
+    box-shadow: 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-color);
+  }
+
+  /* Remove default list styles when used in nav/UI */
+  nav ul,
+  nav ol {
+    list-style: none;
+  }
+
+  /* Smooth image rendering */
+  img,
+  video {
+    max-width: 100%;
+    display: block;
+  }
+
+  /* Heading scale */
+  h1 { font-size: 2.25rem; line-height: 2.5rem; font-weight: 800; letter-spacing: 0; }
+  h2 { font-size: 1.875rem; line-height: 2.25rem; font-weight: 800; letter-spacing: 0; }
+  h3 { font-size: 1.5rem; line-height: 2rem; font-weight: 600; }
+  h4 { font-size: 1.25rem; line-height: 1.75rem; font-weight: 600; }
+  h5 { font-size: 1.125rem; line-height: 1.75rem; font-weight: 500; }
+  h6 { font-size: 1rem; line-height: 1.5rem; font-weight: 500; }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .container {
+    max-width: 1180px;
+  }
+
+  .premium-card {
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    background: rgba(255, 255, 255, 0.84);
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.07);
+    backdrop-filter: blur(18px);
+  }
+
+  .section-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    color: var(--color-brand);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .section-eyebrow::before {
+    content: "";
+    width: 2rem;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.55;
+  }
 }
