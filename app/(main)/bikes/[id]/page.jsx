@@ -8,14 +8,32 @@ import {
   Wrench,
   CheckCircle,
   Zap,
+  Calendar,
+  CreditCard,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
 
 const includedAccessories = [
   "Helmet (Safety certified)",
   "Riding gloves",
   "Scarf / Face cover",
+];
+
+const PLANS = [
+  {
+    id: "monthly",
+    label: "Monthly — pay upfront",
+    price: "€170",
+    sublabel: "One payment for the full month",
+    tag: "Save €10",
+  },
+  {
+    id: "weekly",
+    label: "Weekly — spread the cost",
+    price: "€45/wk",
+    sublabel: "€45 per week × 4 weeks",
+    tag: "Flexible",
+  },
 ];
 
 export async function generateMetadata({ params }) {
@@ -43,11 +61,6 @@ export default async function BikeDetailsPage({ params }) {
 
   if (!bike) notFound();
 
-  const { data: pricingPlans } = await supabase
-    .from("rental_pricing_plans")
-    .select("*")
-    .order("total_price", { ascending: true });
-
   const { data: repairServices } = await supabase
     .from("repair_services")
     .select("name")
@@ -57,7 +70,7 @@ export default async function BikeDetailsPage({ params }) {
 
   return (
     <div className="min-h-screen bg-slate-50/70">
-      {/* ── Breadcrumb ──────────────────────────────────── */}
+      {/* ── Breadcrumb ── */}
       <div className="border-b border-slate-200/70 bg-white">
         <div className="container mx-auto px-4 md:px-8 py-4">
           <Link
@@ -70,7 +83,7 @@ export default async function BikeDetailsPage({ params }) {
         </div>
       </div>
 
-      {/* ── Main content ────────────────────────────────── */}
+      {/* ── Main content ── */}
       <div className="container mx-auto px-4 md:px-8 py-10 md:py-14">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
 
@@ -86,7 +99,6 @@ export default async function BikeDetailsPage({ params }) {
               ) : (
                 <Bike size={80} className="text-slate-300" />
               )}
-              {/* Status badge */}
               <div className="absolute top-4 left-4">
                 <span
                   className={`text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
@@ -126,19 +138,25 @@ export default async function BikeDetailsPage({ params }) {
               </p>
             )}
 
-            {/* Pricing plans */}
-            <div className="mb-7">
-              <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider mb-3">
-                Rental Plans
-              </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {pricingPlans?.map((plan) => (
+            {/* Plans */}
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <CreditCard size={15} className="text-slate-500" />
+                <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider">
+                  Payment plans — minimum 1 month
+                </h2>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {PLANS.map((plan) => (
                   <div
                     key={plan.id}
-                    className="premium-card rounded-xl px-3 py-3 text-center"
+                    className="premium-card rounded-xl px-4 py-4"
                   >
-                    <p className="text-xs text-slate-400 mb-0.5">{plan.name}</p>
-                    <p className="font-bold text-slate-900">€{plan.total_price}</p>
+                    <span className="inline-block text-[10px] font-bold uppercase tracking-widest text-brand bg-brand/8 px-2 py-0.5 rounded-full mb-2">
+                      {plan.tag}
+                    </span>
+                    <p className="font-bold text-slate-900 text-base">{plan.price}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{plan.sublabel}</p>
                   </div>
                 ))}
               </div>
@@ -148,31 +166,58 @@ export default async function BikeDetailsPage({ params }) {
             <div className="mb-7 flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
               <ShieldCheck size={16} className="text-brand flex-shrink-0 mt-0.5" />
               <p className="text-sm text-blue-700">
-                New rentals require a{" "}
+                New customers pay a{" "}
                 <strong className="font-semibold">€50 refundable deposit</strong>{" "}
-                on top of the rental fee, returned when the bike is handed back.
+                with their first payment. Returning customers are exempt. Deposit
+                is returned when the bike is handed back in good condition.
               </p>
+            </div>
+
+            {/* How it works — mini steps */}
+            <div className="mb-7">
+              <div className="flex items-center gap-2 mb-3">
+                <Calendar size={15} className="text-slate-500" />
+                <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider">
+                  How it works
+                </h2>
+              </div>
+              <ol className="flex flex-col gap-2">
+                {[
+                  "Choose your start date & plan",
+                  "Transfer payment + send screenshot via WhatsApp",
+                  "We verify & assign you a bike with pickup time",
+                  "Sign your contract on the dashboard — your rental starts!",
+                ].map((step, i) => (
+                  <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600">
+                    <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-brand/10 text-[10px] font-bold text-brand">
+                      {i + 1}
+                    </span>
+                    {step}
+                  </li>
+                ))}
+              </ol>
             </div>
 
             {/* CTA */}
             <div className="mt-auto">
               {isAvailable ? (
-                <Button asChild size="lg" className="w-full sm:w-auto">
-                  <Link href={`/rent/${bike.id}`}>
-                    Rent this bike{" "}
-                    <ArrowRight size={16} className="ml-1" />
-                  </Link>
-                </Button>
+                <Link
+                  href={`/rent/${bike.id}`}
+                  className="inline-flex items-center gap-2 font-bold text-white px-7 py-3.5 rounded-xl text-base"
+                  style={{ background: "#315cff" }}
+                >
+                  Start Rental <ArrowRight size={16} />
+                </Link>
               ) : (
-                <Button size="lg" disabled className="w-full sm:w-auto">
+                <button disabled className="inline-flex items-center gap-2 font-bold text-white px-7 py-3.5 rounded-xl text-base bg-slate-300 cursor-not-allowed">
                   Currently Unavailable
-                </Button>
+                </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* ── Included + Repairs ──────────────────────── */}
+        {/* ── Included + Repairs ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Accessories */}
           <div className="premium-card rounded-2xl p-7 md:p-8">

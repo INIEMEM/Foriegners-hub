@@ -31,6 +31,9 @@ import {
   saveSettings,
   updateRepairRequestStatus,
   verifyPayment,
+  assignBike,
+  verifyRentalExtension,
+  rejectRentalExtension,
 } from "@/app/actions/admin";
 import { getPaymentStatusMeta, getRentalStatusMeta } from "@/lib/rental-status";
 
@@ -216,33 +219,39 @@ function Modal({ title, children, onClose }) {
   );
 }
 
-function Overview({ stats, payments, rentals, repairs }) {
+function Overview({ stats, payments, rentals, repairs, setActiveTab }) {
   const cards = [
-    { label: "Active rentals", value: stats.activeRentals, icon: Bike, tone: "border-l-brand" },
-    { label: "Pending payments", value: stats.pendingPayments, icon: CreditCard, tone: "border-l-orange-DEFAULT" },
-    { label: "Upcoming returns", value: stats.upcomingReturns, icon: CalendarDays, tone: "border-l-brand" },
-    { label: "Overdue rentals", value: stats.overdueRentals, icon: XCircle, tone: "border-l-danger" },
-    { label: "Available bikes", value: stats.availableBikes, icon: CheckCircle2, tone: "border-l-green-DEFAULT" },
-    { label: "Rented bikes", value: stats.rentedBikes, icon: Bike, tone: "border-l-slate-700" },
-    { label: "Maintenance bikes", value: stats.maintenanceBikes, icon: Wrench, tone: "border-l-orange-DEFAULT" },
-    { label: "Total users", value: stats.totalUsers, icon: Users, tone: "border-l-brand" },
-    { label: "Pending repairs", value: stats.pendingRepairs, icon: Wrench, tone: "border-l-danger" },
-    { label: "Pending extensions", value: stats.pendingExtensions, icon: CalendarDays, tone: "border-l-brand" },
+    { label: "Active rentals", tab: "rentals", value: stats.activeRentals, icon: Bike, color: "text-brand", bg: "bg-brand/10" },
+    { label: "Pending payments", tab: "payments", value: stats.pendingPayments, icon: CreditCard, color: "text-orange-500", bg: "bg-orange-50" },
+    { label: "Upcoming returns", tab: "rentals", value: stats.upcomingReturns, icon: CalendarDays, color: "text-brand", bg: "bg-brand/10" },
+    { label: "Overdue rentals", tab: "rentals", value: stats.overdueRentals, icon: XCircle, color: "text-red-500", bg: "bg-red-50" },
+    { label: "Available bikes", tab: "bikes", value: stats.availableBikes, icon: CheckCircle2, color: "text-green-600", bg: "bg-green-50" },
+    { label: "Rented bikes", tab: "bikes", value: stats.rentedBikes, icon: Bike, color: "text-slate-600", bg: "bg-slate-100" },
+    { label: "Maintenance bikes", tab: "bikes", value: stats.maintenanceBikes, icon: Wrench, color: "text-orange-500", bg: "bg-orange-50" },
+    { label: "Total users", tab: "users", value: stats.totalUsers, icon: Users, color: "text-brand", bg: "bg-brand/10" },
+    { label: "Pending repairs", tab: "repairs", value: stats.pendingRepairs, icon: Wrench, color: "text-red-500", bg: "bg-red-50" },
+    { label: "Pending extensions", tab: "extensions", value: stats.pendingExtensions, icon: CalendarDays, color: "text-brand", bg: "bg-brand/10" },
   ];
 
   return (
     <div className="space-y-8">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {cards.map((card) => {
           const Icon = card.icon;
           return (
-            <div key={card.label} className={`premium-card rounded-2xl border-l-4 ${card.tone} p-5`}>
-              <p className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-900">
-                <Icon size={16} className="text-brand" />
-                {card.label}
-              </p>
-              <p className="text-3xl font-extrabold text-slate-950">{card.value}</p>
-            </div>
+            <button
+              key={card.label}
+              onClick={() => setActiveTab(card.tab)}
+              className="premium-card group flex flex-col justify-between rounded-2xl p-5 text-left transition-all duration-200 hover:-translate-y-1 hover:border-brand/30 hover:shadow-xl hover:shadow-brand/5 focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
+            >
+              <div className="flex w-full items-start justify-between gap-2">
+                <p className="text-sm font-bold text-slate-600 transition-colors group-hover:text-slate-900">{card.label}</p>
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${card.bg} ${card.color} transition-transform duration-300 group-hover:scale-110`}>
+                  <Icon size={20} />
+                </div>
+              </div>
+              <p className="mt-4 text-3xl font-extrabold text-slate-950">{card.value}</p>
+            </button>
           );
         })}
       </div>
@@ -277,7 +286,9 @@ function Panel({ title, children }) {
   );
 }
 
-function PaymentList({ payments, compact = false }) {
+function PaymentList({ payments, compact = false, availableBikes = [] }) {
+  const [selectedBikes, setSelectedBikes] = useState({});
+
   if (!payments.length) {
     return <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">No payments found.</p>;
   }
@@ -288,10 +299,11 @@ function PaymentList({ payments, compact = false }) {
         const meta = getPaymentStatusMeta(payment.status);
         const rental = payment.rentals;
         const extension = payment.rental_extensions?.[0];
+        const currentBike = rental?.bikes;
         return (
           <div key={payment.id} className="rounded-xl border border-slate-200 bg-white p-4">
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div>
+              <div className="flex-1">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <StatusBadge className={meta.className}>{meta.label}</StatusBadge>
                   <span className="text-xs text-slate-500">{formatDate(payment.payment_date || payment.created_at, true)}</span>
@@ -299,7 +311,7 @@ function PaymentList({ payments, compact = false }) {
                 <h3 className="text-sm font-bold text-slate-900">{personName(payment.profiles)}</h3>
                 <p className="text-xs text-slate-500">{payment.profiles?.email}</p>
                 <p className="mt-2 text-sm text-slate-700">
-                  {rental?.bikes?.name || "Bike"} {rental?.bikes?.b_code ? `(${rental.bikes.b_code})` : ""}
+                  <span className="font-semibold">Current bike:</span> {currentBike?.name || "Bike"} {currentBike?.b_code ? `(${currentBike.b_code})` : ""}
                 </p>
                 {extension && (
                   <p className="mt-1 text-xs font-semibold text-brand">
@@ -315,13 +327,40 @@ function PaymentList({ payments, compact = false }) {
                     {payment.rejection_reason && <span>Rejection: {payment.rejection_reason}</span>}
                   </div>
                 )}
+
+                {extension && payment.status === "PAYMENT_SUBMITTED" && !compact && (
+                  <div className="mt-3 max-w-md rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Assigned bike for this extension:
+                    </label>
+                    <select
+                      value={selectedBikes[payment.id] || ""}
+                      onChange={(e) => setSelectedBikes({ ...selectedBikes, [payment.id]: e.target.value })}
+                      className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-brand"
+                    >
+                      <option value="">
+                        Keep current: {currentBike?.name || "Assigned bike"} {currentBike?.b_code ? `(${currentBike.b_code})` : ""}
+                      </option>
+                      {availableBikes.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          Swap to: {b.name} ({b.b_code})
+                        </option>
+                      ))}
+                    </select>
+                    {availableBikes.length === 0 && (
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        No other available bikes in stock. The customer will keep their current bike.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="min-w-32 text-left md:text-right">
                 <p className="text-lg font-extrabold text-slate-950">{formatCurrency(payment.amount)}</p>
                 {payment.status === "PAYMENT_SUBMITTED" && (
                   <div className="mt-3 flex flex-wrap gap-2 md:justify-end">
                     <ActionButton
-                      action={() => verifyPayment(payment.id)}
+                      action={() => verifyPayment(payment.id, selectedBikes[payment.id] || null)}
                       className="bg-green-600 text-white hover:bg-green-700"
                     >
                       Verify
@@ -347,8 +386,9 @@ function PaymentList({ payments, compact = false }) {
   );
 }
 
-function ExtensionsPanel({ extensions }) {
+function ExtensionsPanel({ extensions, availableBikes = [] }) {
   const [query, setQuery] = useState("");
+  const [selectedBikes, setSelectedBikes] = useState({});
   const filtered = extensions.filter((extension) => searchable(extension).includes(query.toLowerCase()));
 
   return (
@@ -357,30 +397,95 @@ function ExtensionsPanel({ extensions }) {
         <SearchBox value={query} onChange={setQuery} placeholder="Search extensions..." />
       </div>
       <div className="space-y-3">
-        {filtered.map((extension) => (
-          <div key={extension.id} className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-              <div>
-                <StatusBadge className="bg-slate-100 text-slate-700">
-                  {extension.status.replace("_", " ")}
-                </StatusBadge>
-                <h3 className="mt-2 text-sm font-bold text-slate-900">{personName(extension.profiles)}</h3>
-                <p className="text-xs text-slate-500">{extension.profiles?.email}</p>
-                <p className="mt-2 text-sm text-slate-700">
-                  {extension.rentals?.bikes?.name || "Bike"}
-                  {extension.rentals?.bikes?.b_code ? ` (${extension.rentals.bikes.b_code})` : ""}
-                </p>
-                <div className="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-2">
-                  <span>Plan: {extension.rental_pricing_plans?.name || "Not set"}</span>
-                  <span>Amount: {formatCurrency(extension.amount)}</span>
-                  <span>Deposit: {formatCurrency(extension.deposit_amount)}</span>
-                  <span>New return: {formatDate(extension.proposed_end_date)}</span>
+        {filtered.map((extension) => {
+          const currentBike = extension.rentals?.bikes;
+          const isPending = ["REQUESTED", "AWAITING_PAYMENT", "PAYMENT_SUBMITTED", "PAYMENT_VERIFIED"].includes(extension.status);
+
+          return (
+            <div key={extension.id} className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div className="flex-1">
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <StatusBadge className={
+                      extension.status === "APPROVED"
+                        ? "bg-green-50 text-green-700"
+                        : extension.status === "REJECTED"
+                        ? "bg-red-50 text-red-700"
+                        : "bg-orange-50 text-orange-700"
+                    }>
+                      {extension.status.replace("_", " ")}
+                    </StatusBadge>
+                    <span className="text-xs text-slate-500">
+                      Requested {formatDate(extension.requested_at, true)}
+                    </span>
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-900">{personName(extension.profiles)}</h3>
+                  <p className="text-xs text-slate-500">{extension.profiles?.email}</p>
+                  <p className="mt-2 text-sm text-slate-700">
+                    <span className="font-semibold">Current bike:</span> {currentBike?.name || "Bike"}
+                    {currentBike?.b_code ? ` (${currentBike.b_code})` : ""}
+                  </p>
+                  <div className="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-2">
+                    <span>Plan: {extension.rental_pricing_plans?.name || "Not set"}</span>
+                    <span>Amount: {formatCurrency(extension.amount)}</span>
+                    <span>Deposit: {formatCurrency(extension.deposit_amount)}</span>
+                    <span>New return: {formatDate(extension.proposed_end_date)}</span>
+                  </div>
+
+                  {/* Bike reassignment and action buttons when pending */}
+                  {isPending && (
+                    <div className="mt-4 border-t border-slate-100 pt-3">
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 max-w-lg">
+                        <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                          Assigned bike for this extension:
+                        </label>
+                        <select
+                          value={selectedBikes[extension.id] || ""}
+                          onChange={(e) => setSelectedBikes({ ...selectedBikes, [extension.id]: e.target.value })}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-brand"
+                        >
+                          <option value="">
+                            Keep current: {currentBike?.name || "Assigned bike"} {currentBike?.b_code ? `(${currentBike.b_code})` : ""}
+                          </option>
+                          {availableBikes.map((b) => (
+                            <option key={b.id} value={b.id}>
+                              Swap to: {b.name} ({b.b_code})
+                            </option>
+                          ))}
+                        </select>
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          Keep current or select an available bike from inventory to swap upon extension approval.
+                        </p>
+                      </div>
+
+                      <div className="mt-3 flex items-center gap-2">
+                        <ActionButton
+                          action={() => verifyRentalExtension({
+                            extensionId: extension.id,
+                            bikeId: selectedBikes[extension.id] || null
+                          })}
+                          className="bg-green-600 text-white hover:bg-green-700"
+                        >
+                          Approve & Extend
+                        </ActionButton>
+                        <ActionButton
+                          action={() => {
+                            const reason = window.prompt("Reason for declining extension request?") || "";
+                            return rejectRentalExtension({ extensionId: extension.id, reason });
+                          }}
+                          variant="outline"
+                          className="border-danger/30 text-danger hover:bg-danger/5"
+                        >
+                          Decline
+                        </ActionButton>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-              <p className="text-xs text-slate-500">Requested {formatDate(extension.requested_at, true)}</p>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {!filtered.length && (
           <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
             No extension requests found.
@@ -391,7 +496,10 @@ function ExtensionsPanel({ extensions }) {
   );
 }
 
-function RentalList({ rentals, compact = false }) {
+function RentalList({ rentals, compact = false, availableBikes = [] }) {
+  const [isAssigning, startAssigning] = useTransition();
+  const [assignError, setAssignError] = useState("");
+
   if (!rentals.length) {
     return <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">No rentals found.</p>;
   }
@@ -403,10 +511,12 @@ function RentalList({ rentals, compact = false }) {
         const latestPayment = [...(rental.payments || [])].sort((a, b) => new Date(b.created_at || b.payment_date || 0) - new Date(a.created_at || a.payment_date || 0))[0];
         const paymentMeta = latestPayment ? getPaymentStatusMeta(latestPayment.status) : null;
 
+        const needsBike = ["CONTRACT_PENDING", "PAYMENT_VERIFIED"].includes(rental.status) && rental.total_amount < 500;
+
         return (
           <div key={rental.id} className="rounded-xl border border-slate-200 bg-white p-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-              <div>
+              <div className="flex-1">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <StatusBadge className={meta.className}>{meta.label}</StatusBadge>
                   {paymentMeta && <StatusBadge className={paymentMeta.className}>{paymentMeta.label}</StatusBadge>}
@@ -424,6 +534,40 @@ function RentalList({ rentals, compact = false }) {
                     <span>End: {formatDate(rental.end_date)}</span>
                     <span>Deposit: {formatCurrency(rental.deposit_amount)}</span>
                     <span>Created: {formatDate(rental.created_at, true)}</span>
+                  </div>
+                )}
+                
+                {needsBike && !compact && (
+                  <div className="mt-4 border-t border-slate-100 pt-4">
+                    {availableBikes.length === 0 ? (
+                      <p className="text-sm text-orange-600 font-bold">No available bikes in inventory to assign.</p>
+                    ) : (
+                      <form 
+                        action={(formData) => {
+                          setAssignError("");
+                          startAssigning(async () => {
+                            try {
+                              await assignBike(formData);
+                            } catch (err) {
+                              setAssignError(err.message || "Failed to assign bike");
+                            }
+                          });
+                        }}
+                        className="flex flex-wrap items-center gap-2"
+                      >
+                        <input type="hidden" name="rental_id" value={rental.id} />
+                        <select name="bike_id" required className="flex h-9 min-w-48 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-900 outline-none focus:border-brand">
+                          <option value="">Select a bike to assign...</option>
+                          {availableBikes.map(b => (
+                            <option key={b.id} value={b.id}>{b.name} ({b.b_code})</option>
+                          ))}
+                        </select>
+                        <Button size="sm" disabled={isAssigning}>
+                          {isAssigning ? <Loader2 size={14} className="animate-spin" /> : "Assign Bike"}
+                        </Button>
+                      </form>
+                    )}
+                    {assignError && <p className="mt-2 text-xs text-danger">{assignError}</p>}
                   </div>
                 )}
               </div>
@@ -1293,14 +1437,17 @@ export default function AdminOperations({
         ))}
       </div>
 
-      {activeTab === "overview" && <Overview stats={stats} payments={payments} rentals={rentals} repairs={repairs} />}
+      {activeTab === "overview" && <Overview stats={stats} payments={payments} rentals={rentals} repairs={repairs} setActiveTab={setActiveTab} />}
 
       {activeTab === "payments" && (
         <Panel title="Payment verification">
           <div className="mb-5">
             <SearchBox value={paymentQuery} onChange={setPaymentQuery} placeholder="Search payments..." />
           </div>
-          <PaymentList payments={filteredPayments} />
+          <PaymentList 
+            payments={filteredPayments} 
+            availableBikes={bikes.filter((b) => b.status === "AVAILABLE")} 
+          />
         </Panel>
       )}
 
@@ -1309,11 +1456,19 @@ export default function AdminOperations({
           <div className="mb-5">
             <SearchBox value={rentalQuery} onChange={setRentalQuery} placeholder="Search rentals..." />
           </div>
-          <RentalList rentals={filteredRentals} />
+          <RentalList 
+            rentals={filteredRentals} 
+            availableBikes={bikes.filter((b) => b.status === "AVAILABLE")} 
+          />
         </Panel>
       )}
 
-      {activeTab === "extensions" && <ExtensionsPanel extensions={extensions} />}
+      {activeTab === "extensions" && (
+        <ExtensionsPanel 
+          extensions={extensions} 
+          availableBikes={bikes.filter((b) => b.status === "AVAILABLE")} 
+        />
+      )}
       {activeTab === "bikes" && <BikeManagement bikes={bikes} categories={bikeCategories} />}
       {activeTab === "apartments" && <ApartmentManagement apartments={apartments} categories={apartmentCategories} />}
       {activeTab === "users" && <UsersPanel users={users} />}

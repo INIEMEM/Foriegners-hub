@@ -4,17 +4,29 @@ import Image from "next/image";
 /**
  * Foreigners Hub logo.
  */
-export default function Logo({ className = "", light = false }) {
+export default function Logo({ className = "", light = false, asLink = true }) {
+  const content = (
+    <Image 
+      src="/logo.jpg" 
+      alt="Foreigners Hub Logo" 
+      width={100} 
+      height={25}
+      className="object-contain"
+      priority
+    />
+  );
+
+  if (!asLink) {
+    return (
+      <div className={`inline-flex items-center gap-0 select-none ${className}`}>
+        {content}
+      </div>
+    );
+  }
+
   return (
     <Link href="/" className={`inline-flex items-center gap-0 select-none ${className}`}>
-      <Image 
-        src="/logo.jpg" 
-        alt="Foreigners Hub Logo" 
-        width={100} 
-        height={25}
-        className="object-contain"
-        priority
-      />
+      {content}
     </Link>
   );
 }

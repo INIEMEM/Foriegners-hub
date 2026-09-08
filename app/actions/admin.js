@@ -82,13 +82,15 @@ function storagePathFromPublicUrl(value, bucketName) {
   }
 }
 
-export async function verifyPayment(paymentId) {
+export async function verifyPayment(paymentId, options = {}) {
+  const newBikeId = typeof options === "string" ? options : options?.bikeId;
   const { supabase, user } = await requireAdmin();
 
   const { data: payment, error: paymentError } = await supabase
     .from("payments")
     .select(`
       id,
+      amount,
       status,
       rental_id,
       user_id,
@@ -132,9 +134,51 @@ export async function verifyPayment(paymentId) {
     .maybeSingle();
 
   if (extension) {
+    let bikeUpdateFields = {};
+    const oldBikeId = payment.rentals?.bike_id;
+
+    if (newBikeId && newBikeId !== oldBikeId) {
+      const { data: newBike, error: newBikeErr } = await supabase
+        .from("bikes")
+        .update({ status: "RENTED", updated_at: timestamp })
+        .eq("id", newBikeId)
+        .eq("status", "AVAILABLE")
+        .select("id, name, b_code")
+        .single();
+
+      if (newBikeErr || !newBike) throw new Error("Selected bike is no longer available.");
+
+      if (oldBikeId) {
+        await supabase
+          .from("bikes")
+          .update({ status: "AVAILABLE", updated_at: timestamp })
+          .eq("id", oldBikeId);
+      }
+
+      bikeUpdateFields.bike_id = newBikeId;
+
+      await supabase.from("notifications").insert({
+        user_id: payment.user_id,
+        title: "Rental Extended & Bike Assigned",
+        message: `Your rental extension has been approved! Your assigned bike has been updated to ${newBike.name} (${newBike.b_code}). Please visit Foreigners Hub to swap/collect your bike.`,
+        type: "INFO",
+      });
+    } else {
+      await supabase.from("notifications").insert({
+        user_id: payment.user_id,
+        title: "Rental Extension Approved",
+        message: `Your rental extension has been approved until ${new Date(extension.proposed_end_date).toLocaleDateString()}.`,
+        type: "INFO",
+      });
+    }
+
     const { error: rentalExtendError } = await supabase
       .from("rentals")
-      .update({ end_date: extension.proposed_end_date, updated_at: timestamp })
+      .update({
+        end_date: extension.proposed_end_date,
+        updated_at: timestamp,
+        ...bikeUpdateFields
+      })
       .eq("id", extension.rental_id)
       .eq("status", "ACTIVE");
 
@@ -154,17 +198,25 @@ export async function verifyPayment(paymentId) {
   } else {
     const { error: rError } = await supabase
       .from("rentals")
-      .update({ status: "ACTIVE", updated_at: timestamp })
+      .update({ status: "CONTRACT_PENDING", updated_at: timestamp })
       .eq("id", payment.rental_id);
 
-    if (rError) throw new Error("Rental could not be activated.");
+    if (rError) throw new Error("Rental could not be updated to CONTRACT_PENDING.");
 
-    const { error: bError } = await supabase
-      .from("bikes")
-      .update({ status: "RENTED", updated_at: timestamp })
-      .eq("id", payment.rentals.bike_id);
+    // Create a pending contract record
+    const { error: contractError } = await supabase
+      .from("contracts")
+      .insert({
+        rental_id: payment.rental_id,
+        user_id: payment.user_id,
+        version: "v1.0",
+        status: "PENDING"
+      });
 
-    if (bError) throw new Error("Bike status could not be updated.");
+    if (contractError) {
+      console.error("Contract creation error:", contractError);
+      throw new Error("Payment verified, but failed to generate pending contract.");
+    }
   }
 
   await supabase.from("notifications").insert({
@@ -347,6 +399,162 @@ export async function rejectPayment(paymentId, reason = "") {
 
   revalidatePath("/admin");
   revalidatePath("/dashboard");
+}
+
+export async function verifyRentalExtension({ extensionId, bikeId }) {
+  const { supabase, user } = await requireAdmin();
+  if (!extensionId) throw new Error("Extension ID is required.");
+
+  const timestamp = new Date().toISOString();
+
+  const { data: extension, error: extErr } = await supabase
+    .from("rental_extensions")
+    .select(`
+      id,
+      rental_id,
+      user_id,
+      payment_id,
+      proposed_end_date,
+      status,
+      rentals(id, bike_id, status)
+    `)
+    .eq("id", extensionId)
+    .single();
+
+  if (extErr || !extension) throw new Error("Extension request not found.");
+  if (extension.status === "APPROVED") throw new Error("Extension is already approved.");
+
+  const oldBikeId = extension.rentals?.bike_id;
+  let bikeUpdateFields = {};
+
+  if (bikeId && bikeId !== oldBikeId) {
+    const { data: newBike, error: newBikeErr } = await supabase
+      .from("bikes")
+      .update({ status: "RENTED", updated_at: timestamp })
+      .eq("id", bikeId)
+      .eq("status", "AVAILABLE")
+      .select("id, name, b_code")
+      .single();
+
+    if (newBikeErr || !newBike) throw new Error("Selected bike is no longer available.");
+
+    if (oldBikeId) {
+      await supabase
+        .from("bikes")
+        .update({ status: "AVAILABLE", updated_at: timestamp })
+        .eq("id", oldBikeId);
+    }
+
+    bikeUpdateFields.bike_id = bikeId;
+
+    await supabase.from("notifications").insert({
+      user_id: extension.user_id,
+      title: "Rental Extended & Bike Assigned",
+      message: `Your rental extension has been approved! Your assigned bike has been updated to ${newBike.name} (${newBike.b_code}). Please visit Foreigners Hub to swap/collect your bike.`,
+      type: "INFO",
+    });
+  } else {
+    await supabase.from("notifications").insert({
+      user_id: extension.user_id,
+      title: "Rental Extension Approved",
+      message: `Your rental extension has been approved until ${new Date(extension.proposed_end_date).toLocaleDateString()}.`,
+      type: "INFO",
+    });
+  }
+
+  // Update rental
+  const { error: rError } = await supabase
+    .from("rentals")
+    .update({
+      end_date: extension.proposed_end_date,
+      updated_at: timestamp,
+      ...bikeUpdateFields
+    })
+    .eq("id", extension.rental_id);
+
+  if (rError) throw new Error("Failed to update rental duration.");
+
+  // Update extension record
+  const { error: eError } = await supabase
+    .from("rental_extensions")
+    .update({
+      status: "APPROVED",
+      verified_at: timestamp,
+      verified_by: user.id,
+      updated_at: timestamp,
+    })
+    .eq("id", extensionId);
+
+  if (eError) throw new Error("Failed to approve extension.");
+
+  // If there's an associated payment, mark it VERIFIED as well
+  if (extension.payment_id) {
+    await supabase
+      .from("payments")
+      .update({
+        status: "VERIFIED",
+        verified_at: timestamp,
+        verified_by: user.id,
+      })
+      .eq("id", extension.payment_id);
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+
+  return { success: true };
+}
+
+export async function rejectRentalExtension({ extensionId, reason = "" }) {
+  const { supabase, user } = await requireAdmin();
+  if (!extensionId) throw new Error("Extension ID is required.");
+
+  const timestamp = new Date().toISOString();
+
+  const { data: extension, error: extErr } = await supabase
+    .from("rental_extensions")
+    .select("id, user_id, payment_id")
+    .eq("id", extensionId)
+    .single();
+
+  if (extErr || !extension) throw new Error("Extension request not found.");
+
+  await supabase
+    .from("rental_extensions")
+    .update({
+      status: "REJECTED",
+      rejected_at: timestamp,
+      rejected_by: user.id,
+      rejection_reason: cleanString(reason) || null,
+      updated_at: timestamp,
+    })
+    .eq("id", extensionId);
+
+  if (extension.payment_id) {
+    await supabase
+      .from("payments")
+      .update({
+        status: "REJECTED",
+        rejected_at: timestamp,
+        rejected_by: user.id,
+        rejection_reason: cleanString(reason) || null,
+      })
+      .eq("id", extension.payment_id);
+  }
+
+  await supabase.from("notifications").insert({
+    user_id: extension.user_id,
+    title: "Rental Extension Request Declined",
+    message: cleanString(reason)
+      ? `Your rental extension request could not be approved. Reason: ${cleanString(reason)}`
+      : "Your rental extension request could not be approved. Please contact Foreigners Hub support.",
+    type: "WARNING",
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+
+  return { success: true };
 }
 
 export async function saveBike(formData) {
@@ -644,3 +852,66 @@ export async function saveSettings(formData) {
   revalidatePath("/bikes");
 }
 
+
+export async function assignBike(formData) {
+  const { supabase, user } = await requireAdmin();
+  const rentalId = formData.get("rental_id");
+  const bikeId = formData.get("bike_id");
+
+  if (!rentalId || !bikeId) {
+    throw new Error("Rental ID and Bike ID are required.");
+  }
+
+  // 1. Get the current rental
+  const { data: rental, error: rError } = await supabase
+    .from("rentals")
+    .select("id, status, user_id, bike_id, profiles(email)")
+    .eq("id", rentalId)
+    .single();
+
+  if (rError || !rental) throw new Error("Rental not found.");
+  if (!["CONTRACT_PENDING", "PAYMENT_VERIFIED"].includes(rental.status)) {
+    throw new Error("Rental must be CONTRACT_PENDING or PAYMENT_VERIFIED before assigning bike.");
+  }
+
+  const timestamp = new Date().toISOString();
+
+  // 2. Mark new bike as RENTED
+  const { error: bError } = await supabase
+    .from("bikes")
+    .update({ status: "RENTED", updated_at: timestamp })
+    .eq("id", bikeId)
+    .eq("status", "AVAILABLE"); // Ensure it's still available!
+
+  if (bError) throw new Error("Could not assign this bike. It may no longer be available.");
+
+  // 3. Mark old placeholder bike back as AVAILABLE (if it was somehow reserved/rented, but we kept it AVAILABLE in our code earlier, so it's fine. Wait, let's just make sure we don't accidentally free a bike that belongs to someone else. The placeholder bike was never marked as RENTED, so we don't need to change its status!).
+  // Wait, if we DO need to free an old bike: we shouldn't unless it was RENTED. Since placeholder was kept AVAILABLE, no action needed on old bike.
+
+  // 4. Update rental with new bike_id and ACTIVE status
+  const { error: updateError } = await supabase
+    .from("rentals")
+    .update({
+      bike_id: bikeId,
+      status: "ACTIVE",
+      updated_at: timestamp
+    })
+    .eq("id", rentalId);
+
+  if (updateError) throw new Error("Failed to activate rental.");
+
+  // 5. Send Notification
+  await supabase.from("notifications").insert({
+    user_id: rental.user_id,
+    title: "Bike assigned",
+    message: "Your bike has been assigned and your rental is now active. You can view the details in your dashboard.",
+    type: "INFO"
+  });
+
+  // (Optional) Email could be sent here
+
+  const { revalidatePath } = require("next/cache");
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+  return { success: true };
+}

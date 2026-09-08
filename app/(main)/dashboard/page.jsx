@@ -1,3 +1,5 @@
+import SignContractPanel from "./SignContractPanel";
+import ContractAccessPanel from "./ContractAccessPanel";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -102,44 +104,8 @@ function ProgressBar({ progress }) {
   );
 }
 
-function ContractAccess({ contract }) {
-  if (!contract) {
-    return (
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-        No signed contract is available for this rental yet.
-      </div>
-    );
-  }
 
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-bold text-slate-900">Signed contract</p>
-          <p className="text-xs text-slate-500">
-            Signed by {contract.signer_name || "customer"} on {formatDate(contract.signed_at)}
-          </p>
-        </div>
-        <StatusBadge meta={{ label: "On file", className: "bg-green-50 text-green-700" }} />
-      </div>
-      {contract.document_path ? (
-        <Link
-          href={contract.document_path}
-          className="inline-flex items-center gap-2 text-sm font-bold text-brand hover:text-brand-dark"
-        >
-          View/download contract <ArrowRight size={14} />
-        </Link>
-      ) : (
-        <p className="text-xs text-slate-500">
-          The signed contract record is available. A downloadable document has
-          not been generated in the current contract system.
-        </p>
-      )}
-    </div>
-  );
-}
-
-function CurrentRental({ rental, pricingPlans, repairServices, siteSettings }) {
+function CurrentRental({ rental, pricingPlans, repairServices, siteSettings, userEmail, userName }) {
   if (!rental) {
     return (
       <section className="premium-card rounded-2xl p-8">
@@ -182,7 +148,7 @@ function CurrentRental({ rental, pricingPlans, repairServices, siteSettings }) {
       <div className="premium-card overflow-hidden rounded-2xl">
         <div className="flex items-center gap-4 border-b border-slate-100 bg-slate-50 p-5">
           <div className="flex h-16 w-20 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white">
-            {rental.bikes?.image_url ? (
+            {showProgress && rental.bikes?.image_url ? (
               <img
                 src={rental.bikes.image_url}
                 alt={rental.bikes.name || "Bike"}
@@ -198,10 +164,10 @@ function CurrentRental({ rental, pricingPlans, repairServices, siteSettings }) {
               <StatusBadge meta={paymentMeta} />
             </div>
             <h2 className="truncate text-xl font-extrabold text-slate-950">
-              {rental.bikes?.name || "Bike details unavailable"}
+              {showProgress ? (rental.bikes?.name || "Bike details unavailable") : "Bike to be assigned"}
             </h2>
             <p className="font-mono text-xs text-slate-500">
-              {rental.bikes?.b_code || "B-Code unavailable"}
+              {showProgress ? (rental.bikes?.b_code || "B-Code unavailable") : "Pending assignment"}
             </p>
           </div>
         </div>
@@ -251,7 +217,13 @@ function CurrentRental({ rental, pricingPlans, repairServices, siteSettings }) {
             <FileText size={16} className="text-brand" />
             Contract
           </h3>
-          <ContractAccess contract={contract} />
+          <ContractAccessPanel
+            contract={contract}
+            rental={rental}
+            siteSettings={siteSettings}
+            userEmail={userEmail}
+            userName={userName}
+          />
         </div>
 
         <div className="premium-card rounded-2xl p-6">
@@ -450,7 +422,7 @@ export default async function DashboardPage() {
       apartments(name),
       rental_pricing_plans(name, duration_weeks, duration_months, total_price),
       payments(id, amount, payment_date, status, verified_at, created_at),
-      contracts(id, version, signed_at, signer_name, document_path, status, created_at),
+      contracts(id, version, signed_at, signer_name, signature_data, document_path, status, created_at),
       rental_extensions(id, pricing_plan_id, payment_id, current_end_date, proposed_end_date, amount, deposit_amount, status, requested_at, payment_submitted_at, created_at)
     `)
     .eq("user_id", user.id)
@@ -554,7 +526,14 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <CurrentRental rental={currentRental} pricingPlans={pricingPlans || []} repairServices={repairServices || []} siteSettings={siteSettings} />
+      <CurrentRental
+        rental={currentRental}
+        pricingPlans={pricingPlans || []}
+        repairServices={repairServices || []}
+        siteSettings={siteSettings}
+        userEmail={profile?.email || user.email}
+        userName={`${profile?.first_name || ""} ${profile?.last_name || ""}`.trim()}
+      />
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
         <PaymentHistory payments={payments || []} />

@@ -3,84 +3,111 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getSiteUrl, sendEmail } from "@/lib/email/service";
-import { paymentSubmittedTemplate } from "@/lib/email/templates";
+import {
+  paymentSubmittedTemplate,
+  paymentVerifiedTemplate,
+  paymentRejectedTemplate,
+  extensionPaymentSubmittedTemplate,
+} from "@/lib/email/templates";
+
+// ── Hardcoded pricing plans (no longer DB-driven for initial rental) ──────────
+const PLANS = {
+  monthly: { label: "1 month — upfront", durationMonths: 1, price: 170, type: "monthly" },
+  weekly:  { label: "1 month — weekly payments (€45/wk)", durationMonths: 1, price: 45, type: "weekly" },
+};
 
 /**
- * Creates a new rental and electronic contract
+ * Creates a rental request + records payment submission for a guest user.
+ * Finds or creates the Supabase user by email using the Admin API.
+ * The user does NOT need to be logged in to call this.
+ * They will receive a magic link by email to access their dashboard later.
  */
-export async function createRentalAndContract({ bikeId, planId, signatureData, signerName }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+export async function guestSubmitRental({ email, name, planType, startDate }) {
+  const { createClient: createAdminClient } = await import("@supabase/supabase-js");
 
-  if (!signatureData?.trim() || !signerName?.trim()) {
-    throw new Error("Please sign the rental agreement before continuing.");
+  const adminSupabase = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
+  if (!email || !email.includes("@")) throw new Error("Please enter a valid email address.");
+
+  const plan = PLANS[planType];
+  if (!plan) throw new Error("Invalid plan selected.");
+  if (!startDate) throw new Error("Please select a start date.");
+
+  // 1. Find or create the user account
+  let userId;
+  let isNewUser = false;
+
+  const { data: { users }, error: listError } = await adminSupabase.auth.admin.listUsers();
+  const existing = users?.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+
+  if (existing) {
+    userId = existing.id;
+  } else {
+    // Create the user account without sending confirmation email yet
+    const { data: { user: newUser }, error: createError } = await adminSupabase.auth.admin.createUser({
+      email,
+      email_confirm: false, // They will confirm when clicking their dashboard link
+    });
+    if (createError || !newUser) throw new Error("Could not create your account. Please try again.");
+    userId = newUser.id;
+    isNewUser = true;
+
+    // Ensure profile row exists
+    const nameParts = (name || "").trim().split(/\s+/);
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+    await adminSupabase.from("profiles").upsert({ id: userId, email, role: "USER", first_name: firstName, last_name: lastName }, { onConflict: "id" });
   }
 
-  const { data: bike } = await supabase
-    .from("bikes")
-    .select("id, status")
-    .eq("id", bikeId)
-    .single();
-
-  if (!bike || bike.status !== "AVAILABLE") {
-    throw new Error("This bike is no longer available for rent.");
-  }
-
-  const { data: plan } = await supabase
-    .from("rental_pricing_plans")
-    .select("*")
-    .eq("id", planId)
-    .single();
-
-  if (!plan) throw new Error("Invalid plan");
-
-  const depositAmount = 50;
-  const totalAmount = Number(plan.total_price) + depositAmount;
-
-  // Date Logic: Booking day is not counted as a full rental day.
-  // Start date is tomorrow.
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() + 1);
-  startDate.setHours(0, 0, 0, 0);
-
-  const endDate = new Date(startDate);
-  if (plan.duration_months > 0) {
-    endDate.setMonth(endDate.getMonth() + plan.duration_months);
-  }
-  if (plan.duration_weeks > 0) {
-    endDate.setDate(endDate.getDate() + (plan.duration_weeks * 7));
-  }
-
-  // Double check user doesn't already have an active bike rental
-  const { data: existingRentals, error: existingRentalsError } = await supabase
+  // 2. Check for existing active rental
+  const { data: existingRentals } = await adminSupabase
     .from("rentals")
     .select("id")
-    .eq("user_id", user.id)
-    .not("bike_id", "is", null)
+    .eq("user_id", userId)
     .not("status", "in", "(EXPIRED,CANCELLED)");
 
-  if (existingRentalsError) {
-    throw new Error("We could not confirm your current rental status. Please try again.");
-  }
-    
   if (existingRentals && existingRentals.length > 0) {
-    throw new Error("You already have an active bike rental.");
+    throw new Error("This email already has an active or pending rental. Please check your email for your dashboard link.");
   }
 
-  // We need to bypass RLS or use the user's session to insert.
-  // Since we have a trigger/constraint, we can just use the standard client.
-  
-  // 1. Create Rental
-  const { data: rental, error: rentalError } = await supabase
+  // 3. Get a placeholder bike (required by the DB check constraint)
+  const { data: placeholderBike } = await adminSupabase
+    .from("bikes")
+    .select("id")
+    .limit(1)
+    .single();
+
+  if (!placeholderBike) throw new Error("System error: No bikes in database.");
+
+  // 4. Check if returning customer (no deposit)
+  const { data: priorRentals } = await adminSupabase
+    .from("rentals")
+    .select("id")
+    .eq("user_id", userId)
+    .in("status", ["EXPIRED", "COMPLETED"])
+    .limit(1);
+
+  const isReturningCustomer = priorRentals && priorRentals.length > 0;
+  const depositAmount = isReturningCustomer ? 0 : 50;
+  const totalAmount = plan.price + depositAmount;
+
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+  const endDate = new Date(start);
+  endDate.setMonth(endDate.getMonth() + plan.durationMonths);
+
+  // 5. Create the rental
+  const { data: rental, error: rentalError } = await adminSupabase
     .from("rentals")
     .insert({
-      user_id: user.id,
-      bike_id: bikeId,
-      pricing_plan_id: planId,
-      status: "AWAITING_PAYMENT", // We jump to AWAITING_PAYMENT because they signed the contract in the same step
+      user_id: userId,
+      bike_id: placeholderBike.id,
+      status: "AWAITING_PAYMENT",
       type: "NEW",
-      start_date: startDate.toISOString(),
+      start_date: start.toISOString(),
       end_date: endDate.toISOString(),
       total_amount: totalAmount,
       deposit_amount: depositAmount,
@@ -89,38 +116,117 @@ export async function createRentalAndContract({ bikeId, planId, signatureData, s
     .single();
 
   if (rentalError) {
-    throw new Error("We could not create your rental. Please try again.");
+    console.error("Rental insert error:", rentalError);
+    throw new Error("Could not create your rental. Please try again.");
   }
 
-  // 2. Create Contract
-  const { error: contractError } = await supabase
-    .from("contracts")
-    .insert({
-      rental_id: rental.id,
-      user_id: user.id,
-      version: "v1.0",
-      signed_at: new Date().toISOString(),
-      signer_name: signerName,
-      signature_data: signatureData,
-      status: "SIGNED"
-    });
+  // 6. Record payment as submitted
+  await adminSupabase.from("payments").insert({
+    rental_id: rental.id,
+    user_id: userId,
+    amount: totalAmount,
+    payment_reference: "FHUB-RENTAL",
+    status: "PAYMENT_SUBMITTED",
+    submitted_at: new Date().toISOString(),
+    payment_date: new Date().toISOString(),
+  });
 
-  if (contractError) {
-    // If contract fails, we should ideally rollback the rental. For now, throw.
-    throw new Error("We could not save your contract signature. Please contact support.");
+  await adminSupabase
+    .from("rentals")
+    .update({ status: "PAYMENT_SUBMITTED" })
+    .eq("id", rental.id);
+
+  // 7. Send confirmation email + magic link for future dashboard access
+  const siteUrl = getSiteUrl();
+  const { data: magicLinkData } = await adminSupabase.auth.admin.generateLink({
+    type: "magiclink",
+    email,
+    options: { redirectTo: `${siteUrl}/auth/callback?next=/dashboard` },
+  });
+
+  await sendEmail({
+    to: email,
+    template: paymentSubmittedTemplate({
+      dashboardUrl: magicLinkData?.properties?.action_link || `${siteUrl}/login`,
+    }),
+  });
+
+  return { rentalId: rental.id, email, isNewUser };
+}
+
+/**
+ * Creates a new rental request for an already-logged-in user.
+ */
+export async function createRentalRequest({ planType, startDate, isReturningCustomer }) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const plan = PLANS[planType];
+  if (!plan) throw new Error("Invalid plan selected.");
+
+  if (!startDate) throw new Error("Please select a start date.");
+
+  const { data: existingRentals } = await supabase
+    .from("rentals")
+    .select("id")
+    .eq("user_id", user.id)
+    .not("status", "in", "(EXPIRED,CANCELLED)");
+
+  if (existingRentals && existingRentals.length > 0) {
+    throw new Error("You already have an active or pending rental.");
   }
 
-  // 3. Mark bike as RESERVED so no one else rents it while they pay
-  await supabase
+  // The database schema has a CHECK constraint: (bike_id IS NOT NULL OR apartment_id IS NOT NULL)
+  // Since the admin will assign the actual bike later, we use any existing bike as a temporary placeholder.
+  const { data: placeholderBike } = await supabase
     .from("bikes")
-    .update({ status: "RESERVED" })
-    .eq("id", bikeId);
+    .select("id")
+    .limit(1)
+    .single();
+
+  if (!placeholderBike) {
+    throw new Error("System error: No bikes available in the database to fulfill the request.");
+  }
+
+  const depositAmount = isReturningCustomer ? 0 : 50;
+  const totalAmount = plan.price + depositAmount;
+
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+
+  const endDate = new Date(start);
+  endDate.setMonth(endDate.getMonth() + plan.durationMonths);
+
+  const { data: rental, error: rentalError } = await supabase
+    .from("rentals")
+    .insert({
+      user_id: user.id,
+      bike_id: placeholderBike.id,  // Placeholder to satisfy DB constraint
+      status: "AWAITING_PAYMENT",
+      type: "NEW",
+      start_date: start.toISOString(),
+      end_date: endDate.toISOString(),
+      total_amount: totalAmount,
+      deposit_amount: depositAmount,
+    })
+    .select()
+    .single();
+
+  if (rentalError) {
+    console.error("Supabase insert error:", rentalError);
+    throw new Error(rentalError.message || "We could not create your rental. Please try again.");
+  }
+
+  // NOTE: Bike stays AVAILABLE until admin confirms payment and assigns it.
+  // This prevents bikes being blocked by unverified payment requests.
 
   return { rentalId: rental.id };
 }
 
+
 /**
- * Submits local payment reference for a rental
+ * Submits local payment reference for a rental + sends confirmation email
  */
 export async function submitPayment({ rentalId, paymentReference }) {
   const supabase = await createClient();
@@ -153,14 +259,13 @@ export async function submitPayment({ rentalId, paymentReference }) {
       payment_reference: cleanedReference,
       status: "PAYMENT_SUBMITTED",
       submitted_at: new Date().toISOString(),
-      payment_date: new Date().toISOString()
+      payment_date: new Date().toISOString(),
     });
 
   if (paymentError) {
     throw new Error("We could not submit your payment confirmation. Please try again.");
   }
 
-  // 2. Update Rental Status
   const { error: rentalError } = await supabase
     .from("rentals")
     .update({ status: "PAYMENT_SUBMITTED" })
@@ -171,6 +276,7 @@ export async function submitPayment({ rentalId, paymentReference }) {
     throw new Error("Your payment was submitted, but we could not update the rental status.");
   }
 
+  // Email: payment submitted
   await sendEmail({
     to: user.email,
     template: paymentSubmittedTemplate({ dashboardUrl: `${getSiteUrl()}/dashboard` }),
@@ -181,16 +287,63 @@ export async function submitPayment({ rentalId, paymentReference }) {
   return { success: true, paymentReference: cleanedReference };
 }
 
+/**
+ * Requests a rental extension (only available for ACTIVE rentals after first month ends)
+ */
 export async function requestRentalExtension(formData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
   const rentalId = formData.get("rental_id");
-  const planId = formData.get("pricing_plan_id");
+  const pricingPlanId = formData.get("pricing_plan_id");
+  const extensionType = formData.get("extension_type"); // For backward compatibility
 
-  if (!rentalId || !planId) {
+  if (!rentalId || (!pricingPlanId && !extensionType)) {
     throw new Error("Please select an extension plan.");
+  }
+
+  let durationWeeks = 0;
+  let durationMonths = 0;
+  let price = 0;
+  let planId = pricingPlanId;
+
+  if (pricingPlanId) {
+    const { data: plan, error: planError } = await supabase
+      .from("rental_pricing_plans")
+      .select("id, name, duration_weeks, duration_months, total_price")
+      .eq("id", pricingPlanId)
+      .single();
+
+    if (planError || !plan) {
+      throw new Error("The selected extension plan could not be found.");
+    }
+
+    durationWeeks = plan.duration_weeks || 0;
+    durationMonths = plan.duration_months || 0;
+    price = Number(plan.total_price || 0);
+  } else {
+    const EXTENSION_PLANS = {
+      weekly:  { label: "1 week extension", durationWeeks: 1, durationMonths: 0, price: 55 },
+      monthly: { label: "1 month extension", durationWeeks: 0, durationMonths: 1, price: 170 },
+    };
+    const extPlan = EXTENSION_PLANS[extensionType];
+    if (!extPlan) throw new Error("Invalid extension plan.");
+
+    durationWeeks = extPlan.durationWeeks;
+    durationMonths = extPlan.durationMonths;
+    price = extPlan.price;
+
+    const { data: placeholderPlan } = await supabase
+      .from("rental_pricing_plans")
+      .select("id")
+      .limit(1)
+      .single();
+
+    if (!placeholderPlan) {
+      throw new Error("System error: No pricing plans exist in the database.");
+    }
+    planId = placeholderPlan.id;
   }
 
   const { data: rental, error: rentalError } = await supabase
@@ -208,65 +361,53 @@ export async function requestRentalExtension(formData) {
     throw new Error("Only active bike rentals can be extended.");
   }
 
-  const { data: existingExtension, error: extensionLookupError } = await supabase
+  const { data: existingExtension } = await supabase
     .from("rental_extensions")
     .select("id")
     .eq("rental_id", rental.id)
     .in("status", ["REQUESTED", "AWAITING_PAYMENT", "PAYMENT_SUBMITTED", "PAYMENT_VERIFIED"])
     .limit(1);
 
-  if (extensionLookupError) {
-    throw new Error("We could not check existing extension requests.");
-  }
-
   if (existingExtension && existingExtension.length > 0) {
     throw new Error("This rental already has an extension request in progress.");
-  }
-
-  const { data: plan, error: planError } = await supabase
-    .from("rental_pricing_plans")
-    .select("*")
-    .eq("id", planId)
-    .single();
-
-  if (planError || !plan) {
-    throw new Error("Invalid extension plan.");
   }
 
   const currentEndDate = new Date(rental.end_date);
   const proposedEndDate = new Date(currentEndDate);
 
-  if (plan.duration_months > 0) {
-    proposedEndDate.setMonth(proposedEndDate.getMonth() + plan.duration_months);
+  if (durationMonths > 0) {
+    proposedEndDate.setMonth(proposedEndDate.getMonth() + durationMonths);
+  }
+  if (durationWeeks > 0) {
+    proposedEndDate.setDate(proposedEndDate.getDate() + durationWeeks * 7);
   }
 
-  if (plan.duration_weeks > 0) {
-    proposedEndDate.setDate(proposedEndDate.getDate() + (plan.duration_weeks * 7));
-  }
-
-  const { data: extension, error } = await supabase
+  const { data: newExtension, error: extError } = await supabase
     .from("rental_extensions")
     .insert({
       rental_id: rental.id,
       user_id: user.id,
-      pricing_plan_id: plan.id,
+      pricing_plan_id: planId,
       current_end_date: currentEndDate.toISOString(),
       proposed_end_date: proposedEndDate.toISOString(),
-      amount: plan.total_price,
+      amount: price,
       deposit_amount: 0,
       status: "AWAITING_PAYMENT",
     })
-    .select("id")
+    .select()
     .single();
 
-  if (error) {
-    throw new Error("We could not create your extension request.");
+  if (extError) {
+    throw new Error("We could not create your extension request: " + extError.message);
   }
 
   revalidatePath("/dashboard");
-  return { extensionId: extension.id };
+  return { extensionId: newExtension.id };
 }
 
+/**
+ * Submits payment for a rental extension
+ */
 export async function submitExtensionPayment(formData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -327,9 +468,10 @@ export async function submitExtensionPayment(formData) {
     throw new Error("Extension payment was submitted, but the extension request could not be updated.");
   }
 
+  // Email: extension payment submitted
   await sendEmail({
     to: user.email,
-    template: paymentSubmittedTemplate({ dashboardUrl: `${getSiteUrl()}/dashboard` }),
+    template: extensionPaymentSubmittedTemplate({ dashboardUrl: `${getSiteUrl()}/dashboard` }),
   });
 
   revalidatePath("/dashboard");
@@ -337,6 +479,9 @@ export async function submitExtensionPayment(formData) {
   return { success: true };
 }
 
+/**
+ * Cancels a rental (user-initiated)
+ */
 export async function cancelRental(formData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -360,20 +505,15 @@ export async function cancelRental(formData) {
     throw new Error("This rental is already closed.");
   }
 
-  // Update rental status
   const { error: cancelError } = await supabase
     .from("rentals")
-    .update({ 
-      status: "CANCELLED", 
-      updated_at: new Date().toISOString() 
-    })
+    .update({ status: "CANCELLED", updated_at: new Date().toISOString() })
     .eq("id", rental.id);
 
   if (cancelError) {
     throw new Error("Could not cancel the rental. Please try again.");
   }
 
-  // If there is an associated bike, mark it as AVAILABLE again
   if (rental.bike_id) {
     await supabase
       .from("bikes")
@@ -386,6 +526,9 @@ export async function cancelRental(formData) {
   return { success: true };
 }
 
+/**
+ * Submits a repair request
+ */
 export async function submitRepairRequest(formData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -413,5 +556,44 @@ export async function submitRepairRequest(formData) {
 
   revalidatePath("/dashboard");
   revalidatePath("/admin");
+  return { success: true };
+}
+
+export async function signContract({ contractId, signerName }) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { data: contract, error: cError } = await supabase
+    .from("contracts")
+    .select("id, rental_id, status")
+    .eq("id", contractId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (cError || !contract) throw new Error("Contract not found.");
+  if (contract.status !== "PENDING") throw new Error("Contract is already signed.");
+
+  const timestamp = new Date().toISOString();
+
+  const { error: updateError } = await supabase
+    .from("contracts")
+    .update({
+      status: "SIGNED",
+      signed_at: timestamp,
+      signer_name: signerName.trim(),
+    })
+    .eq("id", contractId);
+
+  if (updateError) throw new Error("Failed to sign contract.");
+
+  const { error: rError } = await supabase
+    .from("rentals")
+    .update({ status: "PAYMENT_VERIFIED", updated_at: timestamp })
+    .eq("id", contract.rental_id);
+
+  if (rError) throw new Error("Failed to update rental status.");
+
+  revalidatePath("/dashboard");
   return { success: true };
 }
