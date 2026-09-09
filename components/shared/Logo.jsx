@@ -12,6 +12,7 @@ export default function Logo({ className = "", light = false, asLink = true }) {
       width={100} 
       height={25}
       className="object-contain"
+      style={{ width: "auto", height: "auto" }}
       priority
     />
   );

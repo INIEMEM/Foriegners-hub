@@ -23,150 +23,226 @@ const PLANS = {
  * They will receive a magic link by email to access their dashboard later.
  */
 export async function guestSubmitRental({ email, name, phone, planType, startDate }) {
-  const { createClient: createAdminClient } = await import("@supabase/supabase-js");
+  try {
+    const { createClient: createAdminClient } = await import("@supabase/supabase-js");
 
-  const adminSupabase = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!email || !email.includes("@")) throw new Error("Please enter a valid email address.");
-
-  const plan = PLANS[planType];
-  if (!plan) throw new Error("Invalid plan selected.");
-  if (!startDate) throw new Error("Please select a start date.");
-
-  // 1. Find or create the user account
-  let userId;
-  let isNewUser = false;
-
-  const { data: { users }, error: listError } = await adminSupabase.auth.admin.listUsers();
-  const existing = users?.find((u) => u.email?.toLowerCase() === email.toLowerCase());
-
-  if (existing) {
-    userId = existing.id;
-    const nameParts = (name || "").trim().split(/\s+/);
-    const updates = {};
-    if (phone) updates.phone = phone;
-    if (nameParts[0]) updates.first_name = nameParts[0];
-    if (nameParts.slice(1).join(" ")) updates.last_name = nameParts.slice(1).join(" ");
-    if (Object.keys(updates).length > 0) {
-      await adminSupabase.from("profiles").update(updates).eq("id", userId);
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error("Missing Supabase admin credentials");
+      return { success: false, error: "Server configuration error. Please contact support." };
     }
-  } else {
-    // Create the user account without sending confirmation email yet
-    const { data: { user: newUser }, error: createError } = await adminSupabase.auth.admin.createUser({
-      email,
-      email_confirm: false, // They will confirm when clicking their dashboard link
-    });
-    if (createError || !newUser) throw new Error("Could not create your account. Please try again.");
-    userId = newUser.id;
-    isNewUser = true;
 
-    // Ensure profile row exists
+    const adminSupabase = createAdminClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    const cleanEmail = (email || "").trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      return { success: false, error: "Please enter a valid email address." };
+    }
+
+    const plan = PLANS[planType];
+    if (!plan) return { success: false, error: "Invalid plan selected." };
+    if (!startDate) return { success: false, error: "Please select a start date." };
+
     const nameParts = (name || "").trim().split(/\s+/);
     const firstName = nameParts[0] || "";
     const lastName = nameParts.slice(1).join(" ") || "";
-    await adminSupabase.from("profiles").upsert({
-      id: userId,
-      email,
-      role: "USER",
-      first_name: firstName,
-      last_name: lastName,
-      phone: phone || null,
-    }, { onConflict: "id" });
-  }
+    const cleanPhone = (phone || "").trim();
 
-  // 2. Check for existing active rental
-  const { data: existingRentals } = await adminSupabase
-    .from("rentals")
-    .select("id")
-    .eq("user_id", userId)
-    .not("status", "in", "(EXPIRED,CANCELLED)");
+    // 1. Find or create the user account
+    let userId = null;
+    let isNewUser = false;
 
-  if (existingRentals && existingRentals.length > 0) {
-    throw new Error("This email already has an active or pending rental. Please check your email for your dashboard link.");
-  }
+    // Check existing profile first (fast indexed lookup)
+    const { data: existingProfile } = await adminSupabase
+      .from("profiles")
+      .select("id, email")
+      .ilike("email", cleanEmail)
+      .maybeSingle();
 
-  // 3. Get a placeholder bike (required by the DB check constraint)
-  const { data: placeholderBike } = await adminSupabase
-    .from("bikes")
-    .select("id")
-    .limit(1)
-    .single();
+    if (existingProfile) {
+      userId = existingProfile.id;
+      const updates = {};
+      if (cleanPhone) updates.phone = cleanPhone;
+      if (firstName) updates.first_name = firstName;
+      if (lastName) updates.last_name = lastName;
+      if (Object.keys(updates).length > 0) {
+        await adminSupabase.from("profiles").update(updates).eq("id", userId);
+      }
+    } else {
+      // Check auth users list as fallback
+      const { data: { users } = {} } = await adminSupabase.auth.admin.listUsers();
+      const existingAuthUser = users?.find((u) => u.email?.toLowerCase() === cleanEmail);
 
-  if (!placeholderBike) throw new Error("System error: No bikes in database.");
+      if (existingAuthUser) {
+        userId = existingAuthUser.id;
+        await adminSupabase.from("profiles").upsert({
+          id: userId,
+          email: cleanEmail,
+          role: "USER",
+          first_name: firstName,
+          last_name: lastName,
+          phone: cleanPhone || null,
+        }, { onConflict: "id" });
+      } else {
+        // Create new user with email_confirm: true (avoids Supabase email rate limits and enables magiclink)
+        const { data: createdData, error: createError } = await adminSupabase.auth.admin.createUser({
+          email: cleanEmail,
+          email_confirm: true,
+          user_metadata: {
+            first_name: firstName,
+            last_name: lastName,
+            phone: cleanPhone || null,
+          },
+        });
 
-  // 4. Check if returning customer (no deposit)
-  const { data: priorRentals } = await adminSupabase
-    .from("rentals")
-    .select("id")
-    .eq("user_id", userId)
-    .in("status", ["EXPIRED", "COMPLETED"])
-    .limit(1);
+        if (createError) {
+          console.error("Supabase admin.createUser error:", createError);
+          // If the user actually exists already
+          if (createError.message?.toLowerCase().includes("already") || createError.status === 422) {
+            const { data: retryProfile } = await adminSupabase
+              .from("profiles")
+              .select("id")
+              .ilike("email", cleanEmail)
+              .maybeSingle();
+            if (retryProfile) {
+              userId = retryProfile.id;
+            } else {
+              return { success: false, error: "An account with this email already exists. Please log in." };
+            }
+          } else {
+            return { success: false, error: createError.message || "Could not create user account. Please try again." };
+          }
+        } else if (createdData?.user?.id) {
+          userId = createdData.user.id;
+          isNewUser = true;
 
-  const isReturningCustomer = priorRentals && priorRentals.length > 0;
-  const depositAmount = isReturningCustomer ? 0 : 50;
-  const totalAmount = plan.price + depositAmount;
+          // Upsert profile
+          await adminSupabase.from("profiles").upsert({
+            id: userId,
+            email: cleanEmail,
+            role: "USER",
+            first_name: firstName,
+            last_name: lastName,
+            phone: cleanPhone || null,
+          }, { onConflict: "id" });
+        } else {
+          return { success: false, error: "Unable to create account. Please contact support." };
+        }
+      }
+    }
 
-  const start = new Date(startDate);
-  start.setHours(0, 0, 0, 0);
-  const endDate = new Date(start);
-  endDate.setMonth(endDate.getMonth() + plan.durationMonths);
+    if (!userId) {
+      return { success: false, error: "Could not identify user account." };
+    }
 
-  // 5. Create the rental
-  const { data: rental, error: rentalError } = await adminSupabase
-    .from("rentals")
-    .insert({
+    // 2. Check for existing active/pending rental
+    const { data: existingRentals } = await adminSupabase
+      .from("rentals")
+      .select("id")
+      .eq("user_id", userId)
+      .not("status", "in", "(EXPIRED,CANCELLED)");
+
+    if (existingRentals && existingRentals.length > 0) {
+      return {
+        success: false,
+        error: "This email already has an active or pending rental request. Check your email or chat with us on WhatsApp.",
+      };
+    }
+
+    // 3. Get a placeholder bike (required by DB check constraint)
+    const { data: placeholderBike } = await adminSupabase
+      .from("bikes")
+      .select("id")
+      .limit(1)
+      .maybeSingle();
+
+    if (!placeholderBike) {
+      return { success: false, error: "System error: No bikes currently found in the system." };
+    }
+
+    // 4. Check if returning customer (no deposit)
+    const { data: priorRentals } = await adminSupabase
+      .from("rentals")
+      .select("id")
+      .eq("user_id", userId)
+      .in("status", ["EXPIRED", "COMPLETED"])
+      .limit(1);
+
+    const isReturningCustomer = priorRentals && priorRentals.length > 0;
+    const depositAmount = isReturningCustomer ? 0 : 50;
+    const totalAmount = plan.price + depositAmount;
+
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const endDate = new Date(start);
+    endDate.setMonth(endDate.getMonth() + plan.durationMonths);
+
+    // 5. Create the rental
+    const { data: rental, error: rentalError } = await adminSupabase
+      .from("rentals")
+      .insert({
+        user_id: userId,
+        bike_id: placeholderBike.id,
+        status: "AWAITING_PAYMENT",
+        type: "NEW",
+        start_date: start.toISOString(),
+        end_date: endDate.toISOString(),
+        total_amount: totalAmount,
+        deposit_amount: depositAmount,
+      })
+      .select()
+      .single();
+
+    if (rentalError || !rental) {
+      console.error("Rental insert error:", rentalError);
+      return { success: false, error: "Could not register rental request. Please try again." };
+    }
+
+    // 6. Record payment as submitted
+    await adminSupabase.from("payments").insert({
+      rental_id: rental.id,
       user_id: userId,
-      bike_id: placeholderBike.id,
-      status: "AWAITING_PAYMENT",
-      type: "NEW",
-      start_date: start.toISOString(),
-      end_date: endDate.toISOString(),
-      total_amount: totalAmount,
-      deposit_amount: depositAmount,
-    })
-    .select()
-    .single();
+      amount: totalAmount,
+      payment_reference: "FHUB-RENTAL",
+      status: "PAYMENT_SUBMITTED",
+      submitted_at: new Date().toISOString(),
+      payment_date: new Date().toISOString(),
+    });
 
-  if (rentalError) {
-    console.error("Rental insert error:", rentalError);
-    throw new Error("Could not create your rental. Please try again.");
+    await adminSupabase
+      .from("rentals")
+      .update({ status: "PAYMENT_SUBMITTED" })
+      .eq("id", rental.id);
+
+    // 7. Send confirmation email + magic link for future dashboard access
+    try {
+      const siteUrl = getSiteUrl();
+      const { data: magicLinkData } = await adminSupabase.auth.admin.generateLink({
+        type: "magiclink",
+        email: cleanEmail,
+        options: { redirectTo: `${siteUrl}/auth/callback?next=/dashboard` },
+      });
+
+      await sendEmail({
+        to: cleanEmail,
+        template: paymentSubmittedTemplate({
+          dashboardUrl: magicLinkData?.properties?.action_link || `${siteUrl}/login`,
+        }),
+      });
+    } catch (emailErr) {
+      // Non-fatal: Do not block user confirmation if email delivery fails
+      console.error("Error sending confirmation email in guestSubmitRental:", emailErr);
+    }
+
+    return { success: true, rentalId: rental.id, email: cleanEmail, isNewUser };
+  } catch (err) {
+    console.error("Unexpected error in guestSubmitRental:", err);
+    return { success: false, error: err.message || "An unexpected error occurred. Please try again." };
   }
-
-  // 6. Record payment as submitted
-  await adminSupabase.from("payments").insert({
-    rental_id: rental.id,
-    user_id: userId,
-    amount: totalAmount,
-    payment_reference: "FHUB-RENTAL",
-    status: "PAYMENT_SUBMITTED",
-    submitted_at: new Date().toISOString(),
-    payment_date: new Date().toISOString(),
-  });
-
-  await adminSupabase
-    .from("rentals")
-    .update({ status: "PAYMENT_SUBMITTED" })
-    .eq("id", rental.id);
-
-  // 7. Send confirmation email + magic link for future dashboard access
-  const siteUrl = getSiteUrl();
-  const { data: magicLinkData } = await adminSupabase.auth.admin.generateLink({
-    type: "magiclink",
-    email,
-    options: { redirectTo: `${siteUrl}/auth/callback?next=/dashboard` },
-  });
-
-  await sendEmail({
-    to: email,
-    template: paymentSubmittedTemplate({
-      dashboardUrl: magicLinkData?.properties?.action_link || `${siteUrl}/login`,
-    }),
-  });
-
-  return { rentalId: rental.id, email, isNewUser };
 }
 
 /**

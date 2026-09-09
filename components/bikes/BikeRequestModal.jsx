@@ -110,13 +110,18 @@ export default function BikeRequestModal({
     setLoading(true);
 
     try {
-      await guestSubmitRental({
+      const res = await guestSubmitRental({
         name: name.trim(),
         email: email.trim().toLowerCase(),
         phone: phone.trim(),
         planType,
         startDate: effectiveDate,
       });
+
+      if (res && res.success === false) {
+        setError(res.error || "Could not complete your request. Please try again.");
+        return;
+      }
 
       setSuccess(true);
     } catch (err) {

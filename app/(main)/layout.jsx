@@ -20,7 +20,7 @@ export default async function MainLayout({ children }) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col" suppressHydrationWarning>
       <Navbar />
       <main className="flex-1">{children}</main>
       <Footer />

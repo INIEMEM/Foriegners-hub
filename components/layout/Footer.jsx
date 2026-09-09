@@ -14,6 +14,7 @@ export default function Footer() {
                 width={110}
                 height={40}
                 className="fh-footer-logo-img"
+                style={{ width: "105px", height: "auto" }}
               />
             </Link>
             <p className="fh-footer-desc">

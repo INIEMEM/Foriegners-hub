@@ -90,13 +90,18 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
     setLoading(true);
 
     try {
-      await guestSubmitRental({
+      const res = await guestSubmitRental({
         name: guestName.trim(),
         email: guestEmail.trim().toLowerCase(),
         phone: guestPhone.trim(),
         planType: selectedPlanId,
         startDate: effectiveDate,
       });
+
+      if (res && res.success === false) {
+        setError(res.error || "Could not complete your request. Please try again.");
+        return;
+      }
 
       setSuccess(true);
     } catch (err) {
