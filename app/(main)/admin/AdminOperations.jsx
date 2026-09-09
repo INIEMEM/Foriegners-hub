@@ -522,7 +522,12 @@ function RentalList({ rentals, compact = false, availableBikes = [] }) {
                   {paymentMeta && <StatusBadge className={paymentMeta.className}>{paymentMeta.label}</StatusBadge>}
                 </div>
                 <h3 className="text-sm font-bold text-slate-900">{personName(rental.profiles)}</h3>
-                <p className="text-xs text-slate-500">{rental.profiles?.email}</p>
+                <p className="text-xs text-slate-500">
+                  {rental.profiles?.email}
+                  {rental.profiles?.phone && (
+                    <span className="ml-2 font-medium text-slate-600">· 📞 {rental.profiles.phone}</span>
+                  )}
+                </p>
                 <p className="mt-2 text-sm text-slate-700">
                   {rental.bikes?.name || rental.apartments?.name || "Rental"}
                   {rental.bikes?.b_code ? ` (${rental.bikes.b_code})` : ""}
@@ -1342,6 +1347,18 @@ function SettingsPanel({ siteSettings }) {
               />
             </div>
           </div>
+        </div>
+
+        <div>
+          <h3 className="mb-1 text-sm font-bold text-slate-900">WhatsApp Support Number</h3>
+          <p className="mb-2 text-xs text-slate-500">
+            Number used for the floating "Chat with Admin" button and payment WhatsApp contact.
+          </p>
+          <Input
+            name="whatsapp_number"
+            defaultValue={siteSettings.whatsapp_number || ""}
+            placeholder="e.g. +370 600 00000"
+          />
         </div>
 
         <div>

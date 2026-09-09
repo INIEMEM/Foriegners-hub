@@ -53,7 +53,7 @@ export default async function AdminPage() {
       .from("rentals")
       .select(`
         *,
-        profiles!rentals_user_id_fkey(id, email, first_name, last_name),
+        profiles!rentals_user_id_fkey(id, email, first_name, last_name, phone),
         bikes(id, name, b_code, status),
         apartments(id, name),
         rental_pricing_plans(id, name, total_price),
@@ -65,7 +65,7 @@ export default async function AdminPage() {
       .from("payments")
       .select(`
         *,
-        profiles!payments_user_id_fkey(id, email, first_name, last_name),
+        profiles!payments_user_id_fkey(id, email, first_name, last_name, phone),
         rentals!payments_rental_id_fkey(
           id,
           status,

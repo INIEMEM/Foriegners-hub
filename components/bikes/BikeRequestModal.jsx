@@ -1,89 +1,109 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
 import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  CheckCircle2,
+  X,
   Calendar,
   CreditCard,
-  ShieldCheck,
-  Loader2,
-  MessageCircle,
-  Bike,
   User,
   Mail,
   Phone,
+  CheckCircle2,
+  Loader2,
   Sparkles,
+  ArrowRight,
+  ShieldCheck,
+  MessageCircle,
 } from "lucide-react";
 import { guestSubmitRental } from "@/app/actions/rental";
 
 const PLANS = [
   {
     id: "weekly",
-    label: "Pay weekly",
-    sublabel: "€45 per week over 4 weeks",
-    price: 45,
+    title: "Weekly",
+    sub: "Spread the cost weekly",
+    price: "€45",
+    period: "/ week",
     tag: "Flexible",
-    description: "Spread the cost across 4 weekly payments. Minimum rental is 1 month.",
+    note: "€45 per week over 4 weeks (1 month min.)",
   },
   {
     id: "monthly",
-    label: "Pay at once",
-    sublabel: "€170 upfront for full month",
-    price: 170,
+    title: "Pay at once",
+    sub: "Pay upfront for full month",
+    price: "€170",
+    period: "/ month",
     tag: "Save €10",
-    description: "Pay once and ride for the full month without weekly installments.",
+    note: "Pay once and ride for 1 full month",
   },
 ];
 
-export default function RentalRequestFlow({ user, siteSettings = {}, isReturningCustomer = false }) {
-  const searchParams = useSearchParams();
+export default function BikeRequestModal({
+  isOpen,
+  onClose,
+  initialPlan = "weekly",
+  currentUser = null,
+  whatsappNumber = "+37060000000",
+}) {
   const todayStr = new Date().toISOString().split("T")[0];
 
-  const [dateChoice, setDateChoice] = useState(() => (searchParams.get("date") ? "custom" : "today"));
-  const [customDate, setCustomDate] = useState(() => searchParams.get("date") || "");
-  const [selectedPlanId, setSelectedPlanId] = useState(() => searchParams.get("plan") || "weekly");
-  const [guestName, setGuestName] = useState("");
-  const [guestEmail, setGuestEmail] = useState(() => user?.email || "");
-  const [guestPhone, setGuestPhone] = useState("");
+  const [dateChoice, setDateChoice] = useState("today"); // "today" | "custom"
+  const [customDate, setCustomDate] = useState("");
+  const [planType, setPlanType] = useState(initialPlan || "weekly");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  const selectedPlan = PLANS.find((p) => p.id === selectedPlanId) || PLANS[0];
-  const effectiveDate = dateChoice === "today" ? todayStr : customDate || todayStr;
-  const depositAmount = isReturningCustomer ? 0 : 50;
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.email) setEmail(currentUser.email);
+    }
+  }, [currentUser]);
 
-  const rawNumber = (siteSettings.whatsapp_number || "").replace(/\D/g, "");
-  const waMessage = encodeURIComponent(
-    `Hi Foreigners Hub! I just submitted a bike rental request.\nName: ${guestName}\nEmail: ${guestEmail}\nPhone: ${guestPhone}\nPlan: ${selectedPlan.label}\nStart date: ${effectiveDate}`
-  );
-  const waLink = rawNumber
-    ? `https://wa.me/${rawNumber}?text=${waMessage}`
-    : `https://wa.me/?text=${waMessage}`;
+  useEffect(() => {
+    if (isOpen) {
+      setError("");
+      setSuccess(false);
+      // default customDate to tomorrow if they pick custom
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setCustomDate(tomorrow.toISOString().split("T")[0]);
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const effectiveDate = dateChoice === "today" ? todayStr : customDate;
+  const cleanPhone = (whatsappNumber || "").replace(/\D/g, "");
+  const waUrl = cleanPhone
+    ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(
+        `Hi Foreigners Hub! I just submitted a bike rental request.\nName: ${name}\nEmail: ${email}\nPhone: ${phone}\nPlan: ${planType === "weekly" ? "Weekly (€45/wk)" : "Pay at once (€170/mo)"}\nStart date: ${effectiveDate}`
+      )}`
+    : `https://wa.me/?text=${encodeURIComponent(
+        `Hi Foreigners Hub! I just submitted a bike rental request for ${name}.`
+      )}`;
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
 
-    if (!guestName.trim()) {
+    if (!name.trim()) {
       setError("Please enter your full name.");
       return;
     }
-    if (!guestEmail || !guestEmail.includes("@")) {
+    if (!email || !email.includes("@")) {
       setError("Please enter a valid email address.");
       return;
     }
-    if (!guestPhone.trim()) {
-      setError("Please enter your phone number.");
+    if (!phone.trim()) {
+      setError("Please enter your phone number so we can contact you.");
       return;
     }
     if (dateChoice === "custom" && !customDate) {
-      setError("Please choose your preferred start date.");
+      setError("Please select your preferred start date.");
       return;
     }
 
@@ -91,10 +111,10 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
 
     try {
       await guestSubmitRental({
-        name: guestName.trim(),
-        email: guestEmail.trim().toLowerCase(),
-        phone: guestPhone.trim(),
-        planType: selectedPlanId,
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+        planType,
         startDate: effectiveDate,
       });
 
@@ -106,37 +126,72 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
     }
   }
 
-  return (
-    <div style={{ maxWidth: "640px", margin: "0 auto" }}>
-      {/* Back Link */}
-      <Link
-        href="/bikes"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "6px",
-          color: "#64748b",
-          fontSize: "13px",
-          fontWeight: 600,
-          textDecoration: "none",
-          marginBottom: "20px",
-        }}
-      >
-        <ArrowLeft size={14} /> Back to all bike details
-      </Link>
+  function handleModalClose() {
+    setSuccess(false);
+    setError("");
+    onClose();
+  }
 
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1000,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "16px",
+        background: "rgba(15, 23, 42, 0.65)",
+        backdropFilter: "blur(6px)",
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) handleModalClose();
+      }}
+    >
       <div
         style={{
           background: "#ffffff",
           borderRadius: "24px",
-          padding: "36px 32px",
-          border: "1.5px solid #e2e8f0",
-          boxShadow: "0 12px 35px rgba(15, 23, 42, 0.05)",
+          width: "100%",
+          maxWidth: "540px",
+          maxHeight: "92vh",
+          overflowY: "auto",
+          boxShadow: "0 25px 60px rgba(15, 23, 42, 0.25)",
+          border: "1px solid #e2e8f0",
+          position: "relative",
         }}
       >
+        {/* Close Button */}
+        <button
+          onClick={handleModalClose}
+          style={{
+            position: "absolute",
+            top: "18px",
+            right: "18px",
+            width: "36px",
+            height: "36px",
+            borderRadius: "50%",
+            background: "#f1f5f9",
+            border: "none",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            color: "#64748b",
+            transition: "all 0.2s",
+            zIndex: 10,
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#e2e8f0")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+          aria-label="Close"
+        >
+          <X size={18} />
+        </button>
+
+        {/* ── SUCCESS POPUP STATE ── */}
         {success ? (
-          /* ── SUCCESS POPUP STATE ── */
-          <div style={{ textAlign: "center", padding: "20px 0" }}>
+          <div style={{ padding: "40px 28px", textAlign: "center" }}>
             <div
               style={{
                 width: "76px",
@@ -167,22 +222,23 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
                 marginBottom: "12px",
               }}
             >
-              Request Confirmed
+              Confirmed
             </span>
 
-            <h1
+            <h2
               style={{
-                fontSize: "26px",
+                fontSize: "24px",
                 fontWeight: 800,
                 color: "#0f172a",
                 marginBottom: "8px",
+                lineHeight: 1.25,
               }}
             >
               Request Sent Successfully.
-            </h1>
+            </h2>
             <p
               style={{
-                fontSize: "17px",
+                fontSize: "16px",
                 fontWeight: 600,
                 color: "#315cff",
                 marginBottom: "24px",
@@ -195,37 +251,32 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
               style={{
                 background: "#f8fafc",
                 borderRadius: "16px",
-                padding: "20px",
+                padding: "18px 20px",
                 border: "1px solid #e2e8f0",
                 textAlign: "left",
                 marginBottom: "24px",
                 display: "flex",
                 flexDirection: "column",
                 gap: "10px",
-                fontSize: "14px",
+                fontSize: "13px",
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "#64748b" }}>Customer:</span>
-                <strong style={{ color: "#0f172a" }}>{guestName}</strong>
+                <strong style={{ color: "#0f172a" }}>{name}</strong>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "#64748b" }}>Phone:</span>
-                <strong style={{ color: "#0f172a" }}>{guestPhone}</strong>
+                <strong style={{ color: "#0f172a" }}>{phone}</strong>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#64748b" }}>Email:</span>
-                <strong style={{ color: "#0f172a" }}>{guestEmail}</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#64748b" }}>Plan:</span>
+                <span style={{ color: "#64748b" }}>Payment Plan:</span>
                 <strong style={{ color: "#0f172a" }}>
-                  {selectedPlan.label} (€{selectedPlan.price}
-                  {selectedPlan.id === "weekly" ? "/wk" : "/mo"})
+                  {planType === "weekly" ? "Weekly (€45/wk)" : "Pay at once (€170/mo)"}
                 </strong>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#64748b" }}>Preferred Start:</span>
+                <span style={{ color: "#64748b" }}>Start Date:</span>
                 <strong style={{ color: "#0f172a" }}>
                   {dateChoice === "today"
                     ? "Today"
@@ -238,13 +289,13 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
               </div>
             </div>
 
-            <p style={{ fontSize: "14px", color: "#64748b", lineHeight: 1.6, marginBottom: "28px" }}>
-              Our team has received your request. We will reach out via WhatsApp or phone to confirm bike assignment and pickup timing.
+            <p style={{ fontSize: "13px", color: "#64748b", lineHeight: 1.6, marginBottom: "24px" }}>
+              Our team will review your request, verify availability, and reach out via WhatsApp or phone to confirm your pickup details.
             </p>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <a
-                href={waLink}
+                href={waUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -259,35 +310,35 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
                   fontWeight: 700,
                   fontSize: "15px",
                   textDecoration: "none",
-                  boxShadow: "0 6px 20px rgba(37, 211, 102, 0.35)",
+                  boxShadow: "0 6px 18px rgba(37, 211, 102, 0.35)",
                 }}
               >
                 <MessageCircle size={18} />
                 Chat with Admin on WhatsApp
               </a>
 
-              <Link
-                href="/bikes"
+              <button
+                onClick={handleModalClose}
                 style={{
-                  display: "inline-block",
-                  padding: "13px 20px",
+                  padding: "12px 20px",
                   borderRadius: "14px",
                   border: "1.5px solid #e2e8f0",
                   background: "#ffffff",
                   color: "#475569",
                   fontWeight: 600,
                   fontSize: "14px",
-                  textDecoration: "none",
+                  cursor: "pointer",
                 }}
               >
-                Back to Bikes
-              </Link>
+                Close
+              </button>
             </div>
           </div>
         ) : (
           /* ── REQUEST FORM ── */
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: "24px" }}>
+          <form onSubmit={handleSubmit} style={{ padding: "32px 28px" }}>
+            {/* Header */}
+            <div style={{ marginBottom: "22px" }}>
               <span
                 style={{
                   display: "inline-flex",
@@ -304,20 +355,20 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
                   marginBottom: "8px",
                 }}
               >
-                <Sparkles size={11} /> 1-Minute Booking
+                <Sparkles size={11} /> Easy 1-Minute Booking
               </span>
-              <h1
+              <h2
                 style={{
-                  fontSize: "24px",
+                  fontSize: "22px",
                   fontWeight: 800,
                   color: "#0f172a",
-                  lineHeight: 1.25,
+                  lineHeight: 1.2,
                 }}
               >
-                Request a bike rental
-              </h1>
-              <p style={{ fontSize: "14px", color: "#64748b", marginTop: "4px" }}>
-                Select your preferred start date and plan. We will contact you to verify details and arrange handover.
+                Request a bike
+              </h2>
+              <p style={{ fontSize: "13px", color: "#64748b", marginTop: "4px" }}>
+                Select your start date, plan, and contact info. Our team will contact you to confirm pickup.
               </p>
             </div>
 
@@ -332,10 +383,11 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
                   marginBottom: "8px",
                 }}
               >
-                1. Select preferred start date
+                1. Select preferred date
               </label>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+                {/* Option: Today */}
                 <button
                   type="button"
                   onClick={() => setDateChoice("today")}
@@ -352,12 +404,14 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
                     fontWeight: 700,
                     fontSize: "13px",
                     cursor: "pointer",
+                    transition: "all 0.2s",
                   }}
                 >
                   <Calendar size={15} style={{ color: dateChoice === "today" ? "#315cff" : "#94a3b8" }} />
                   Today
                 </button>
 
+                {/* Option: Other dates */}
                 <button
                   type="button"
                   onClick={() => setDateChoice("custom")}
@@ -374,6 +428,7 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
                     fontWeight: 700,
                     fontSize: "13px",
                     cursor: "pointer",
+                    transition: "all 0.2s",
                   }}
                 >
                   <Calendar size={15} style={{ color: dateChoice === "custom" ? "#315cff" : "#94a3b8" }} />
@@ -381,26 +436,28 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
                 </button>
               </div>
 
+              {/* Custom Date Input */}
               {dateChoice === "custom" && (
-                <input
-                  type="date"
-                  min={todayStr}
-                  value={customDate}
-                  onChange={(e) => setCustomDate(e.target.value)}
-                  required={dateChoice === "custom"}
-                  style={{
-                    width: "100%",
-                    boxSizing: "border-box",
-                    padding: "11px 14px",
-                    borderRadius: "12px",
-                    border: "1.5px solid #cbd5e1",
-                    background: "#f8fafc",
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    color: "#0f172a",
-                    outline: "none",
-                  }}
-                />
+                <div style={{ marginTop: "8px" }}>
+                  <input
+                    type="date"
+                    min={todayStr}
+                    value={customDate}
+                    onChange={(e) => setCustomDate(e.target.value)}
+                    required={dateChoice === "custom"}
+                    style={{
+                      width: "100%",
+                      padding: "11px 14px",
+                      borderRadius: "12px",
+                      border: "1.5px solid #cbd5e1",
+                      background: "#f8fafc",
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      color: "#0f172a",
+                      outline: "none",
+                    }}
+                  />
+                </div>
               )}
             </div>
 
@@ -420,11 +477,11 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                 {PLANS.map((plan) => {
-                  const isSelected = selectedPlanId === plan.id;
+                  const isSelected = planType === plan.id;
                   return (
                     <div
                       key={plan.id}
-                      onClick={() => setSelectedPlanId(plan.id)}
+                      onClick={() => setPlanType(plan.id)}
                       style={{
                         borderRadius: "14px",
                         padding: "14px 16px",
@@ -432,14 +489,16 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
                         background: isSelected ? "#eff6ff" : "#ffffff",
                         cursor: "pointer",
                         transition: "all 0.2s",
+                        position: "relative",
                       }}
                     >
-                      <span
+                      <div
                         style={{
                           display: "inline-block",
                           fontSize: "10px",
                           fontWeight: 700,
                           textTransform: "uppercase",
+                          letterSpacing: "0.05em",
                           padding: "2px 7px",
                           borderRadius: "999px",
                           background: isSelected ? "#315cff" : "#f1f5f9",
@@ -448,18 +507,40 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
                         }}
                       >
                         {plan.tag}
-                      </span>
-                      <div style={{ fontSize: "15px", fontWeight: 700, color: "#0f172a" }}>
-                        {plan.label}
                       </div>
-                      <div style={{ fontSize: "22px", fontWeight: 800, color: isSelected ? "#1d4ed8" : "#0f172a", margin: "4px 0" }}>
-                        €{plan.price}
-                        <span style={{ fontSize: "12px", color: "#64748b", fontWeight: 500 }}>
-                          {plan.id === "weekly" ? "/wk" : "/mo"}
+                      <div
+                        style={{
+                          fontSize: "15px",
+                          fontWeight: 700,
+                          color: "#0f172a",
+                          marginBottom: "2px",
+                        }}
+                      >
+                        {plan.title}
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "baseline",
+                          gap: "3px",
+                          margin: "4px 0",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "22px",
+                            fontWeight: 800,
+                            color: isSelected ? "#1d4ed8" : "#0f172a",
+                          }}
+                        >
+                          {plan.price}
+                        </span>
+                        <span style={{ fontSize: "11px", color: "#64748b" }}>
+                          {plan.period}
                         </span>
                       </div>
-                      <p style={{ fontSize: "11px", color: "#64748b", lineHeight: 1.4, margin: 0 }}>
-                        {plan.sublabel}
+                      <p style={{ fontSize: "11px", color: "#64748b", lineHeight: 1.4 }}>
+                        {plan.note}
                       </p>
                     </div>
                   );
@@ -467,7 +548,7 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
               </div>
             </div>
 
-            {/* 3. USER INFORMATION */}
+            {/* 3. YOUR INFORMATION */}
             <div style={{ marginBottom: "22px" }}>
               <label
                 style={{
@@ -482,6 +563,7 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
               </label>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {/* Full Name */}
                 <div style={{ position: "relative" }}>
                   <User
                     size={16}
@@ -497,8 +579,8 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
                     type="text"
                     required
                     placeholder="Full name"
-                    value={guestName}
-                    onChange={(e) => setGuestName(e.target.value)}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     style={{
                       width: "100%",
                       boxSizing: "border-box",
@@ -512,6 +594,7 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
                   />
                 </div>
 
+                {/* Email Address */}
                 <div style={{ position: "relative" }}>
                   <Mail
                     size={16}
@@ -527,8 +610,8 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
                     type="email"
                     required
                     placeholder="Email address"
-                    value={guestEmail}
-                    onChange={(e) => setGuestEmail(e.target.value)}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     style={{
                       width: "100%",
                       boxSizing: "border-box",
@@ -542,6 +625,7 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
                   />
                 </div>
 
+                {/* Phone Number */}
                 <div style={{ position: "relative" }}>
                   <Phone
                     size={16}
@@ -557,8 +641,8 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
                     type="tel"
                     required
                     placeholder="Phone number (WhatsApp preferred)"
-                    value={guestPhone}
-                    onChange={(e) => setGuestPhone(e.target.value)}
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
                     style={{
                       width: "100%",
                       boxSizing: "border-box",
@@ -574,7 +658,7 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
               </div>
             </div>
 
-            {/* Inclusions Card */}
+            {/* Inclusions Pill / Policy Note */}
             <div
               style={{
                 background: "#f8fafc",
@@ -589,10 +673,11 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
             >
               <ShieldCheck size={16} style={{ color: "#16a34a", flexShrink: 0, marginTop: "2px" }} />
               <p style={{ fontSize: "12px", color: "#475569", lineHeight: 1.5, margin: 0 }}>
-                Includes free maintenance, helmet, phone holder, GPS tracker & human support. Minimum 1 month. €50 refundable deposit for new customers.
+                <strong>All-inclusive:</strong> Free maintenance, helmet, phone holder, GPS tracker & human support. Minimum rental 1 month. Refundable €50 deposit for new customers.
               </p>
             </div>
 
+            {/* Error message */}
             {error && (
               <div
                 style={{
@@ -609,6 +694,7 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
               </div>
             )}
 
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
@@ -627,6 +713,7 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
                 gap: "8px",
                 cursor: loading ? "not-allowed" : "pointer",
                 boxShadow: "0 8px 20px rgba(49, 92, 255, 0.3)",
+                transition: "all 0.2s",
                 opacity: loading ? 0.75 : 1,
               }}
             >

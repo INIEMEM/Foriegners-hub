@@ -837,6 +837,7 @@ export async function saveSettings(formData) {
     { id: "payment_account_iban", value: formData.get("payment_account_iban") },
     { id: "payment_account_bic", value: formData.get("payment_account_bic") },
     { id: "payment_instructions", value: formData.get("payment_instructions") },
+    { id: "whatsapp_number", value: formData.get("whatsapp_number") },
   ].filter(s => s.value !== null);
 
   for (const setting of settings) {

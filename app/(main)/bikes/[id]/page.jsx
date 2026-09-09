@@ -10,29 +10,35 @@ import {
   Zap,
   Calendar,
   CreditCard,
+  Clock,
+  AlertTriangle,
+  MessageCircle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 const includedAccessories = [
-  "Helmet (Safety certified)",
-  "Riding gloves",
-  "Scarf / Face cover",
+  "Free maintenance & quick repairs",
+  "Certified safety helmet",
+  "Secure phone holder",
+  "Real-time GPS anti-theft tracker",
+  "Human support via WhatsApp & phone",
+  "Minimum rental term: 1 month",
 ];
 
 const PLANS = [
   {
-    id: "monthly",
-    label: "Monthly — pay upfront",
-    price: "€170",
-    sublabel: "One payment for the full month",
-    tag: "Save €10",
+    id: "weekly",
+    label: "Weekly payment",
+    price: "€45/wk",
+    sublabel: "€45 per week over 4 weeks (min. 1 month)",
+    tag: "Flexible",
   },
   {
-    id: "weekly",
-    label: "Weekly — spread the cost",
-    price: "€45/wk",
-    sublabel: "€45 per week × 4 weeks",
-    tag: "Flexible",
+    id: "monthly",
+    label: "Pay at once",
+    price: "€170",
+    sublabel: "Pay once upfront for the entire month",
+    tag: "Save €10",
   },
 ];
 
@@ -202,11 +208,11 @@ export default async function BikeDetailsPage({ params }) {
             <div className="mt-auto">
               {isAvailable ? (
                 <Link
-                  href={`/rent/${bike.id}`}
+                  href={`/rent/request?bike=${bike.id}`}
                   className="inline-flex items-center gap-2 font-bold text-white px-7 py-3.5 rounded-xl text-base"
                   style={{ background: "#315cff" }}
                 >
-                  Start Rental <ArrowRight size={16} />
+                  Request This Bike <ArrowRight size={16} />
                 </Link>
               ) : (
                 <button disabled className="inline-flex items-center gap-2 font-bold text-white px-7 py-3.5 rounded-xl text-base bg-slate-300 cursor-not-allowed">
@@ -262,6 +268,55 @@ export default async function BikeDetailsPage({ params }) {
                   {service.name}
                 </span>
               ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Payment reminders & delayed payment policy ── */}
+        <div className="mt-8 premium-card rounded-2xl p-7 md:p-8 border border-slate-200/80 bg-white">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-brand">
+              <Clock size={20} />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900 text-lg">
+                Payment Reminders &amp; Delayed Payments
+              </h3>
+              <p className="text-sm text-slate-500">
+                Transparent and friendly policies so you always stay ahead.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-6">
+            <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock size={16} className="text-brand" />
+                <h4 className="font-bold text-slate-900 text-sm">Advance Reminders</h4>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                You receive automated WhatsApp and email reminders 3 days and 1 day before your next installment is due.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-amber-100 bg-amber-50/40 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle size={16} className="text-amber-600" />
+                <h4 className="font-bold text-amber-900 text-sm">48-Hour Grace Period</h4>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                If payment is delayed, we provide a 48-hour grace period with friendly check-ins so you never lose your ride without notice.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-green-100 bg-green-50/40 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <MessageCircle size={16} className="text-green-600" />
+                <h4 className="font-bold text-green-900 text-sm">Always Reach Out</h4>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Need extra time or want to extend your rental? Message us on WhatsApp and our team will work out an arrangement.
+              </p>
             </div>
           </div>
         </div>

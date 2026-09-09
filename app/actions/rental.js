@@ -22,7 +22,7 @@ const PLANS = {
  * The user does NOT need to be logged in to call this.
  * They will receive a magic link by email to access their dashboard later.
  */
-export async function guestSubmitRental({ email, name, planType, startDate }) {
+export async function guestSubmitRental({ email, name, phone, planType, startDate }) {
   const { createClient: createAdminClient } = await import("@supabase/supabase-js");
 
   const adminSupabase = createAdminClient(
@@ -45,6 +45,14 @@ export async function guestSubmitRental({ email, name, planType, startDate }) {
 
   if (existing) {
     userId = existing.id;
+    const nameParts = (name || "").trim().split(/\s+/);
+    const updates = {};
+    if (phone) updates.phone = phone;
+    if (nameParts[0]) updates.first_name = nameParts[0];
+    if (nameParts.slice(1).join(" ")) updates.last_name = nameParts.slice(1).join(" ");
+    if (Object.keys(updates).length > 0) {
+      await adminSupabase.from("profiles").update(updates).eq("id", userId);
+    }
   } else {
     // Create the user account without sending confirmation email yet
     const { data: { user: newUser }, error: createError } = await adminSupabase.auth.admin.createUser({
@@ -59,7 +67,14 @@ export async function guestSubmitRental({ email, name, planType, startDate }) {
     const nameParts = (name || "").trim().split(/\s+/);
     const firstName = nameParts[0] || "";
     const lastName = nameParts.slice(1).join(" ") || "";
-    await adminSupabase.from("profiles").upsert({ id: userId, email, role: "USER", first_name: firstName, last_name: lastName }, { onConflict: "id" });
+    await adminSupabase.from("profiles").upsert({
+      id: userId,
+      email,
+      role: "USER",
+      first_name: firstName,
+      last_name: lastName,
+      phone: phone || null,
+    }, { onConflict: "id" });
   }
 
   // 2. Check for existing active rental
