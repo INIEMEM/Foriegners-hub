@@ -7,17 +7,20 @@ import {
   CalendarDays,
   CheckCircle2,
   CreditCard,
+  DollarSign,
   Eye,
   FileText,
   ImageIcon,
   Loader2,
   Search,
   Trash2,
+  TrendingUp,
   Users,
   Wrench,
   X,
   XCircle,
 } from "lucide-react";
+import FinancePanel from "./FinancePanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,11 +37,14 @@ import {
   assignBike,
   verifyRentalExtension,
   rejectRentalExtension,
+  adminCancelRental,
+  adminDeleteRental,
 } from "@/app/actions/admin";
 import { getPaymentStatusMeta, getRentalStatusMeta } from "@/lib/rental-status";
 
 const tabs = [
   { id: "overview", label: "Overview" },
+  { id: "finances", label: "Finances" },
   { id: "payments", label: "Payments" },
   { id: "rentals", label: "Rentals" },
   { id: "extensions", label: "Extensions" },
@@ -79,6 +85,21 @@ function personName(profile) {
 
 function searchable(value) {
   return JSON.stringify(value || {}).toLowerCase();
+}
+
+function extractReceiptUrl(payment) {
+  if (payment?.receipt_url) return payment.receipt_url;
+  if (!payment?.payment_reference) return null;
+  const match = payment.payment_reference.match(/\[Receipt:\s*(https?:\/\/[^\]]+)\]/i);
+  if (match) return match[1];
+  const urlMatch = payment.payment_reference.match(/(https?:\/\/[^\s]+)/i);
+  if (urlMatch && urlMatch[1].includes("/documents/")) return urlMatch[1];
+  return null;
+}
+
+function formatPaymentReference(ref) {
+  if (!ref) return "Not provided";
+  return ref.replace(/\s*\[Receipt:\s*https?:\/\/[^\]]+\]/i, "").trim() || ref;
 }
 
 function StatusBadge({ children, className = "bg-slate-100 text-slate-700" }) {
@@ -221,6 +242,7 @@ function Modal({ title, children, onClose }) {
 
 function Overview({ stats, payments, rentals, repairs, setActiveTab }) {
   const cards = [
+    { label: "Total revenue", tab: "finances", value: formatCurrency(stats.totalRevenue), icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50" },
     { label: "Active rentals", tab: "rentals", value: stats.activeRentals, icon: Bike, color: "text-brand", bg: "bg-brand/10" },
     { label: "Pending payments", tab: "payments", value: stats.pendingPayments, icon: CreditCard, color: "text-orange-500", bg: "bg-orange-50" },
     { label: "Upcoming returns", tab: "rentals", value: stats.upcomingReturns, icon: CalendarDays, color: "text-brand", bg: "bg-brand/10" },
@@ -300,6 +322,7 @@ function PaymentList({ payments, compact = false, availableBikes = [] }) {
         const rental = payment.rentals;
         const extension = payment.rental_extensions?.[0];
         const currentBike = rental?.bikes;
+        const receiptUrl = extractReceiptUrl(payment);
         return (
           <div key={payment.id} className="rounded-xl border border-slate-200 bg-white p-4">
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -307,11 +330,21 @@ function PaymentList({ payments, compact = false, availableBikes = [] }) {
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <StatusBadge className={meta.className}>{meta.label}</StatusBadge>
                   <span className="text-xs text-slate-500">{formatDate(payment.payment_date || payment.created_at, true)}</span>
+                  {receiptUrl && compact && (
+                    <a
+                      href={receiptUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-auto inline-flex items-center text-xs font-bold text-brand underline hover:text-brand-dark"
+                    >
+                      Receipt ↗
+                    </a>
+                  )}
                 </div>
                 <h3 className="text-sm font-bold text-slate-900">{personName(payment.profiles)}</h3>
                 <p className="text-xs text-slate-500">{payment.profiles?.email}</p>
                 <p className="mt-2 text-sm text-slate-700">
-                  <span className="font-semibold">Current bike:</span> {currentBike?.name || "Bike"} {currentBike?.b_code ? `(${currentBike.b_code})` : ""}
+                  <span className="font-semibold">Current bike:</span> {currentBike?.name || "Bike"} {currentBike?.b_code ? `(Bike Code: ${currentBike.b_code})` : ""}
                 </p>
                 {extension && (
                   <p className="mt-1 text-xs font-semibold text-brand">
@@ -319,13 +352,24 @@ function PaymentList({ payments, compact = false, availableBikes = [] }) {
                   </p>
                 )}
                 {!compact && (
-                  <div className="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-2">
-                    <span>Plan: {rental?.rental_pricing_plans?.name || "Not set"}</span>
-                    <span>Rental: {formatCurrency(Number(rental?.total_amount || 0) - Number(rental?.deposit_amount || 0))}</span>
-                    <span>Deposit: {formatCurrency(rental?.deposit_amount)}</span>
-                    <span>Reference: {payment.payment_reference || "Not provided"}</span>
-                    {payment.rejection_reason && <span>Rejection: {payment.rejection_reason}</span>}
-                  </div>
+                  <>
+                    <div className="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-2">
+                      <span>Plan: {rental?.rental_pricing_plans?.name || "Not set"}</span>
+                      <span>Rental: {formatCurrency(Number(rental?.total_amount || 0) - Number(rental?.deposit_amount || 0))}</span>
+                      <span>Deposit: {formatCurrency(rental?.deposit_amount)}</span>
+                      <span>Reference: {formatPaymentReference(payment.payment_reference)}</span>
+                      {payment.rejection_reason && <span>Rejection: {payment.rejection_reason}</span>}
+                    </div>
+                    {receiptUrl && (
+                      <div className="mt-3">
+                        <Button asChild size="sm" variant="outline" className="border-brand/40 text-brand hover:bg-brand/5">
+                          <a href={receiptUrl} target="_blank" rel="noopener noreferrer">
+                            View Payment Receipt ↗
+                          </a>
+                        </Button>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {extension && payment.status === "PAYMENT_SUBMITTED" && !compact && (
@@ -339,11 +383,11 @@ function PaymentList({ payments, compact = false, availableBikes = [] }) {
                       className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-brand"
                     >
                       <option value="">
-                        Keep current: {currentBike?.name || "Assigned bike"} {currentBike?.b_code ? `(${currentBike.b_code})` : ""}
+                        Keep current: {currentBike?.name || "Assigned bike"} {currentBike?.b_code ? `(Bike Code: ${currentBike.b_code})` : ""}
                       </option>
                       {availableBikes.map((b) => (
                         <option key={b.id} value={b.id}>
-                          Swap to: {b.name} ({b.b_code})
+                          Swap to: {b.name} (Bike Code: {b.b_code})
                         </option>
                       ))}
                     </select>
@@ -423,7 +467,7 @@ function ExtensionsPanel({ extensions, availableBikes = [] }) {
                   <p className="text-xs text-slate-500">{extension.profiles?.email}</p>
                   <p className="mt-2 text-sm text-slate-700">
                     <span className="font-semibold">Current bike:</span> {currentBike?.name || "Bike"}
-                    {currentBike?.b_code ? ` (${currentBike.b_code})` : ""}
+                    {currentBike?.b_code ? ` (Bike Code: ${currentBike.b_code})` : ""}
                   </p>
                   <div className="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-2">
                     <span>Plan: {extension.rental_pricing_plans?.name || "Not set"}</span>
@@ -445,11 +489,11 @@ function ExtensionsPanel({ extensions, availableBikes = [] }) {
                           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 outline-none focus:border-brand"
                         >
                           <option value="">
-                            Keep current: {currentBike?.name || "Assigned bike"} {currentBike?.b_code ? `(${currentBike.b_code})` : ""}
+                            Keep current: {currentBike?.name || "Assigned bike"} {currentBike?.b_code ? `(Bike Code: ${currentBike.b_code})` : ""}
                           </option>
                           {availableBikes.map((b) => (
                             <option key={b.id} value={b.id}>
-                              Swap to: {b.name} ({b.b_code})
+                              Swap to: {b.name} (Bike Code: {b.b_code})
                             </option>
                           ))}
                         </select>
@@ -499,6 +543,51 @@ function ExtensionsPanel({ extensions, availableBikes = [] }) {
 function RentalList({ rentals, compact = false, availableBikes = [] }) {
   const [isAssigning, startAssigning] = useTransition();
   const [assignError, setAssignError] = useState("");
+  const [isActionPending, startAction] = useTransition();
+  const [actionError, setActionError] = useState("");
+  const [activeActionId, setActiveActionId] = useState(null);
+
+  const handleCancelRental = (rentalId) => {
+    if (
+      !window.confirm(
+        "Are you sure you want to cancel this rental? The assigned bike will be released back to inventory, and any pending payments will be rejected."
+      )
+    ) {
+      return;
+    }
+    setActionError("");
+    setActiveActionId(rentalId);
+    startAction(async () => {
+      try {
+        await adminCancelRental(rentalId);
+      } catch (err) {
+        setActionError(err.message || "Failed to cancel rental");
+      } finally {
+        setActiveActionId(null);
+      }
+    });
+  };
+
+  const handleDeleteRental = (rentalId) => {
+    if (
+      !window.confirm(
+        "Are you sure you want to PERMANENTLY DELETE this rental record and its payment history? This cannot be undone."
+      )
+    ) {
+      return;
+    }
+    setActionError("");
+    setActiveActionId(rentalId);
+    startAction(async () => {
+      try {
+        await adminDeleteRental(rentalId);
+      } catch (err) {
+        setActionError(err.message || "Failed to delete rental");
+      } finally {
+        setActiveActionId(null);
+      }
+    });
+  };
 
   if (!rentals.length) {
     return <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">No rentals found.</p>;
@@ -506,12 +595,18 @@ function RentalList({ rentals, compact = false, availableBikes = [] }) {
 
   return (
     <div className="space-y-3">
+      {actionError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700">
+          {actionError}
+        </div>
+      )}
       {rentals.map((rental) => {
         const meta = getRentalStatusMeta(rental.status);
         const latestPayment = [...(rental.payments || [])].sort((a, b) => new Date(b.created_at || b.payment_date || 0) - new Date(a.created_at || a.payment_date || 0))[0];
         const paymentMeta = latestPayment ? getPaymentStatusMeta(latestPayment.status) : null;
 
         const needsBike = ["CONTRACT_PENDING", "PAYMENT_VERIFIED"].includes(rental.status) && rental.total_amount < 500;
+        const canCancel = rental.status !== "CANCELLED";
 
         return (
           <div key={rental.id} className="rounded-xl border border-slate-200 bg-white p-4">
@@ -530,7 +625,7 @@ function RentalList({ rentals, compact = false, availableBikes = [] }) {
                 </p>
                 <p className="mt-2 text-sm text-slate-700">
                   {rental.bikes?.name || rental.apartments?.name || "Rental"}
-                  {rental.bikes?.b_code ? ` (${rental.bikes.b_code})` : ""}
+                  {rental.bikes?.b_code ? ` · Bike Code: ${rental.bikes.b_code}` : ""}
                 </p>
                 {!compact && (
                   <div className="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-2 lg:grid-cols-3">
@@ -564,7 +659,7 @@ function RentalList({ rentals, compact = false, availableBikes = [] }) {
                         <select name="bike_id" required className="flex h-9 min-w-48 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-900 outline-none focus:border-brand">
                           <option value="">Select a bike to assign...</option>
                           {availableBikes.map(b => (
-                            <option key={b.id} value={b.id}>{b.name} ({b.b_code})</option>
+                            <option key={b.id} value={b.id}>{b.name} (Bike Code: {b.b_code})</option>
                           ))}
                         </select>
                         <Button size="sm" disabled={isAssigning}>
@@ -576,7 +671,41 @@ function RentalList({ rentals, compact = false, availableBikes = [] }) {
                   </div>
                 )}
               </div>
-              <p className="text-sm font-bold text-slate-900">{formatCurrency(rental.total_amount)}</p>
+              <div className="flex flex-col items-end gap-2">
+                <p className="text-sm font-bold text-slate-900">{formatCurrency(rental.total_amount)}</p>
+                <div className="flex items-center gap-1.5">
+                  {canCancel && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isActionPending && activeActionId === rental.id}
+                      onClick={() => handleCancelRental(rental.id)}
+                      className="border-red-200 text-xs font-semibold text-red-600 hover:bg-red-50 hover:text-red-700"
+                    >
+                      {isActionPending && activeActionId === rental.id ? (
+                        <Loader2 size={13} className="mr-1 animate-spin" />
+                      ) : (
+                        <XCircle size={13} className="mr-1" />
+                      )}
+                      Cancel Rental
+                    </Button>
+                  )}
+                  {!compact && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={isActionPending && activeActionId === rental.id}
+                      onClick={() => handleDeleteRental(rental.id)}
+                      className="h-8 w-8 p-0 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                      title="Permanently delete rental"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         );
@@ -589,8 +718,8 @@ function BikeForm({ bike, categories, onSaved }) {
   return (
     <FormShell title={bike ? `Edit ${bike.b_code}` : "Add bike"} action={saveBike} onSaved={onSaved}>
       {bike && <input type="hidden" name="id" defaultValue={bike.id} />}
-      <Field label="B-Code">
-        <Input name="b_code" defaultValue={bike?.b_code || ""} required />
+      <Field label="Bike Code">
+        <Input name="b_code" defaultValue={bike?.b_code || ""} placeholder="e.g. B-ENGWE-001" required />
       </Field>
       <Field label="Name">
         <Input name="name" defaultValue={bike?.name || ""} required />
@@ -917,16 +1046,61 @@ function UserDetailsModal({ user, onClose }) {
   return (
     <Modal title={`User Details: ${personName(user)}`} onClose={onClose}>
       <div className="space-y-4 text-sm text-slate-700">
-        <div>
-          <span className="font-bold">Email:</span> {user.email}
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          <StatusBadge className={user.role === "ADMIN" ? "bg-brand-light text-brand" : "bg-slate-100 text-slate-700"}>
+            {user.role}
+          </StatusBadge>
+          {user.is_existing_rental && (
+            <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200">
+              Existing Rider Track
+            </span>
+          )}
         </div>
-        <div>
-          <span className="font-bold">Role:</span> {user.role}
+
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+          <div>
+            <span className="font-bold text-slate-900">Email:</span> {user.email}
+          </div>
+          <div>
+            <span className="font-bold text-slate-900">Phone:</span> {user.phone || "Not provided"}
+          </div>
+          <div>
+            <span className="font-bold text-slate-900">Joined:</span> {formatDate(user.created_at, true)}
+          </div>
         </div>
-        <div>
-          <span className="font-bold">Joined:</span> {formatDate(user.created_at)}
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <h4 className="font-bold text-slate-900 mb-1">Residence Permit Documents</h4>
+          <p className="text-xs text-slate-500 mb-3">
+            Government identity / residency documents uploaded during onboarding.
+          </p>
+          {user.residence_permit_front_url || user.residence_permit_back_url ? (
+            <div className="flex flex-wrap gap-3">
+              {user.residence_permit_front_url ? (
+                <Button asChild size="sm" variant="outline" className="border-brand/40 text-brand hover:bg-brand/5">
+                  <a href={user.residence_permit_front_url} target="_blank" rel="noopener noreferrer">
+                    View Permit (Front) ↗
+                  </a>
+                </Button>
+              ) : (
+                <span className="text-xs text-slate-400 py-1.5">Front: Not uploaded</span>
+              )}
+              {user.residence_permit_back_url ? (
+                <Button asChild size="sm" variant="outline" className="border-brand/40 text-brand hover:bg-brand/5">
+                  <a href={user.residence_permit_back_url} target="_blank" rel="noopener noreferrer">
+                    View Permit (Back) ↗
+                  </a>
+                </Button>
+              ) : (
+                <span className="text-xs text-slate-400 py-1.5">Back: Not uploaded</span>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400 italic">No residence permit documents uploaded for this user.</p>
+          )}
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+
+        <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <p className="font-bold">Rentals</p>
             <p className="mt-1 text-2xl font-extrabold text-slate-900">{user.rentals?.length || 0}</p>
@@ -964,9 +1138,23 @@ function UsersPanel({ users }) {
           >
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">{personName(user)}</h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-sm font-bold text-slate-900">{personName(user)}</h3>
+                  {user.is_existing_rental && (
+                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 border border-blue-200">
+                      Existing Rider
+                    </span>
+                  )}
+                  {(user.residence_permit_front_url || user.residence_permit_back_url) && (
+                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
+                      Permit Uploaded
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-slate-500">{user.email}</p>
-                <p className="mt-2 text-xs text-slate-500">Joined {formatDate(user.created_at)}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {user.phone ? `Phone: ${user.phone} · ` : ""}Joined {formatDate(user.created_at)}
+                </p>
               </div>
               <StatusBadge className={user.role === "ADMIN" ? "bg-brand-light text-brand" : "bg-slate-100 text-slate-700"}>
                 {user.role}
@@ -1012,6 +1200,20 @@ function ContractDetailsModal({ contract, onClose }) {
             Signature ID: {contract.id}
           </p>
         </div>
+
+        {contract.document_path && (
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <h4 className="mb-1 font-bold text-slate-900">Uploaded Contract Document</h4>
+            <p className="text-xs text-slate-500 mb-3">
+              Signed paper contract uploaded during onboarding or document exchange.
+            </p>
+            <Button asChild size="sm" variant="outline" className="border-brand/40 text-brand hover:bg-brand/5">
+              <a href={contract.document_path} target="_blank" rel="noopener noreferrer">
+                View Contract Document ↗
+              </a>
+            </Button>
+          </div>
+        )}
       </div>
     </Modal>
   );
@@ -1034,7 +1236,7 @@ function ContractsPanel({ contracts }) {
                 <h3 className="text-sm font-bold text-slate-900">{personName(contract.profiles)}</h3>
                 <p className="text-xs text-slate-500">
                   {contract.rentals?.bikes?.name || contract.rentals?.apartments?.name || "Rental"}
-                  {contract.rentals?.bikes?.b_code ? ` (${contract.rentals.bikes.b_code})` : ""}
+                  {contract.rentals?.bikes?.b_code ? ` (Bike Code: ${contract.rentals.bikes.b_code})` : ""}
                 </p>
                 <p className="mt-2 text-xs text-slate-500">Signed {formatDate(contract.signed_at, true)}</p>
               </div>
@@ -1043,8 +1245,10 @@ function ContractsPanel({ contracts }) {
                   View details
                 </Button>
                 {contract.document_path && (
-                  <Button asChild size="sm" variant="outline">
-                    <a href={contract.document_path}>Download PDF</a>
+                  <Button asChild size="sm" variant="outline" className="border-brand/40 text-brand hover:bg-brand/5">
+                    <a href={contract.document_path} target="_blank" rel="noopener noreferrer">
+                      View Contract ↗
+                    </a>
                   </Button>
                 )}
               </div>
@@ -1076,7 +1280,7 @@ function RepairList({ repairs, compact = false }) {
               <p className="text-xs text-slate-500">{repair.profiles?.email}</p>
               <p className="mt-2 text-sm text-slate-700">
                 {repair.repair_services?.name || "Repair service"} for {repair.bikes?.name || "bike"}
-                {repair.bikes?.b_code ? ` (${repair.bikes.b_code})` : ""}
+                {repair.bikes?.b_code ? ` (Bike Code: ${repair.bikes.b_code})` : ""}
               </p>
               {!compact && repair.description && (
                 <p className="mt-2 text-sm text-slate-500">{repair.description}</p>
@@ -1455,6 +1659,15 @@ export default function AdminOperations({
       </div>
 
       {activeTab === "overview" && <Overview stats={stats} payments={payments} rentals={rentals} repairs={repairs} setActiveTab={setActiveTab} />}
+
+      {activeTab === "finances" && (
+        <FinancePanel
+          payments={payments}
+          rentals={rentals}
+          extensions={extensions}
+          setActiveTab={setActiveTab}
+        />
+      )}
 
       {activeTab === "payments" && (
         <Panel title="Payment verification">

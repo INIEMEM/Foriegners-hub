@@ -60,7 +60,7 @@ export default function Navbar() {
   }
 
   return (
-    <header className="fh-nav">
+    <header className="fh-nav" suppressHydrationWarning>
       <div className="fh-container fh-nav-inner">
         {/* Logo — always our official logo */}
         <div className="fh-nav-brand">
@@ -110,9 +110,30 @@ export default function Navbar() {
               <span style={{ width: "80px", height: "20px", display: "inline-block" }} aria-hidden="true" />
             )
           ) : (
-            <Link href="/login" className="fh-nav-login-btn">
-              Login <ArrowUpRight size={14} />
-            </Link>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <Link href="/login" className="fh-nav-login-btn">
+                Login <ArrowUpRight size={14} />
+              </Link>
+              <Link
+                href="/register"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "8px 16px",
+                  borderRadius: "999px",
+                  background: "#315cff",
+                  color: "#ffffff",
+                  fontSize: "0.84rem",
+                  fontWeight: 700,
+                  textDecoration: "none",
+                  boxShadow: "0 4px 14px rgba(49, 92, 255, 0.25)",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                Create Account
+              </Link>
+            </div>
           )}
         </div>
 
@@ -199,14 +220,34 @@ export default function Navbar() {
                 <span style={{ height: "20px", display: "block" }} aria-hidden="true" />
               )
             ) : (
-              <Link
-                href="/login"
-                onClick={() => setMobileOpen(false)}
-                className="fh-nav-login-btn"
-                style={{ justifyContent: "center" }}
-              >
-                Login <ArrowUpRight size={14} />
-              </Link>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <Link
+                  href="/register"
+                  onClick={() => setMobileOpen(false)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "10px 16px",
+                    borderRadius: "10px",
+                    background: "#315cff",
+                    color: "#ffffff",
+                    fontSize: "0.88rem",
+                    fontWeight: 700,
+                    textDecoration: "none",
+                  }}
+                >
+                  Create Account
+                </Link>
+                <Link
+                  href="/login"
+                  onClick={() => setMobileOpen(false)}
+                  className="fh-nav-login-btn"
+                  style={{ justifyContent: "center" }}
+                >
+                  Login <ArrowUpRight size={14} />
+                </Link>
+              </div>
             )}
           </div>
         </div>

@@ -16,7 +16,7 @@ export default async function HomePage() {
   const { data: apartments } = await supabase.from("apartments").select("*").eq("status", "AVAILABLE").order("created_at", { ascending: false }).limit(3);
 
   return (
-    <div className="fh-shell">
+    <div className="fh-shell" suppressHydrationWarning>
       {/* ─────────────────────────────────────────────────── */}
       {/* HERO SECTION                                         */}
       {/* ─────────────────────────────────────────────────── */}
@@ -235,7 +235,7 @@ export default async function HomePage() {
                 <li><Check size={14} /> Maintained city bike with gears</li>
                 <li><Check size={14} /> Heavy duty lock &amp; safety lights</li>
                 <li><Check size={14} /> €50 refundable deposit</li>
-                <li><Check size={14} /> Cancel or extend anytime</li>
+                <li><Check size={14} /> Extend rental anytime</li>
               </ul>
               <Link href="/rent" className="fh-select-plan-btn">
                 Select 1-week plan

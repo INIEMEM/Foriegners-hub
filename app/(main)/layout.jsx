@@ -4,7 +4,7 @@ import WhatsAppWidget from "@/components/shared/WhatsAppWidget";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function MainLayout({ children }) {
-  let whatsappNumber = "+37060000000";
+  let whatsappNumber = "+37060291367";
   try {
     const supabase = await createClient();
     const { data } = await supabase

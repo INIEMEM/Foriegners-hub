@@ -134,6 +134,15 @@ function LoginForm() {
               )}
             </button>
           </form>
+
+          <div style={{ marginTop: "24px", paddingTop: "20px", borderTop: "1px solid #e2e8f0", textAlign: "center" }}>
+            <p style={{ fontSize: "13px", color: "#64748b" }}>
+              Picking up a bike or have an active rental?{" "}
+              <Link href="/register" style={{ color: "#315cff", fontWeight: 700, textDecoration: "none" }}>
+                Create an account →
+              </Link>
+            </p>
+          </div>
         </>
       )}
 

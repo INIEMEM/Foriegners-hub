@@ -2,7 +2,7 @@
 
 import { MessageCircle } from "lucide-react";
 
-export default function WhatsAppWidget({ whatsappNumber = "+37060000000" }) {
+export default function WhatsAppWidget({ whatsappNumber = "+37060291367" }) {
   const cleanNumber = (whatsappNumber || "").replace(/\D/g, "");
   const defaultText = encodeURIComponent(
     "Hi Foreigners Hub! I have a question about bike rentals."

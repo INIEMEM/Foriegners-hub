@@ -721,7 +721,7 @@ export default function BikePageView({ siteSettings = {}, currentUser = null }) 
         onClose={() => setModalOpen(false)}
         initialPlan={preselectedPlan}
         currentUser={currentUser}
-        whatsappNumber={siteSettings.whatsapp_number || "+37060000000"}
+        whatsappNumber={siteSettings.whatsapp_number || "+37060291367"}
       />
     </div>
   );

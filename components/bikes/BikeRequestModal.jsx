@@ -6,7 +6,6 @@ import {
   Calendar,
   CreditCard,
   User,
-  Mail,
   Phone,
   CheckCircle2,
   Loader2,
@@ -15,7 +14,6 @@ import {
   ShieldCheck,
   MessageCircle,
 } from "lucide-react";
-import { guestSubmitRental } from "@/app/actions/rental";
 
 const PLANS = [
   {
@@ -43,7 +41,7 @@ export default function BikeRequestModal({
   onClose,
   initialPlan = "weekly",
   currentUser = null,
-  whatsappNumber = "+37060000000",
+  whatsappNumber = "+37060291367",
 }) {
   const todayStr = new Date().toISOString().split("T")[0];
 
@@ -51,17 +49,10 @@ export default function BikeRequestModal({
   const [customDate, setCustomDate] = useState("");
   const [planType, setPlanType] = useState(initialPlan || "weekly");
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-
-  useEffect(() => {
-    if (currentUser) {
-      if (currentUser.email) setEmail(currentUser.email);
-    }
-  }, [currentUser]);
 
   useEffect(() => {
     if (isOpen) {
@@ -77,13 +68,13 @@ export default function BikeRequestModal({
   if (!isOpen) return null;
 
   const effectiveDate = dateChoice === "today" ? todayStr : customDate;
-  const cleanPhone = (whatsappNumber || "").replace(/\D/g, "");
+  const cleanPhone = (whatsappNumber || "+37060291367").replace(/\D/g, "");
   const waUrl = cleanPhone
     ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(
-        `Hi Foreigners Hub! I just submitted a bike rental request.\nName: ${name}\nEmail: ${email}\nPhone: ${phone}\nPlan: ${planType === "weekly" ? "Weekly (€45/wk)" : "Pay at once (€170/mo)"}\nStart date: ${effectiveDate}`
+        `Hi Foreigners Hub! I would like to request a bike rental.\n\n• Name: ${name.trim()}\n• Phone: ${phone.trim()}\n• Plan: ${planType === "weekly" ? "Weekly (€45/wk)" : "Pay at once (€170/mo)"}\n• Preferred Start Date: ${effectiveDate}`
       )}`
     : `https://wa.me/?text=${encodeURIComponent(
-        `Hi Foreigners Hub! I just submitted a bike rental request for ${name}.`
+        `Hi Foreigners Hub! I would like to request a bike rental for ${name.trim()}.`
       )}`;
 
   async function handleSubmit(e) {
@@ -92,10 +83,6 @@ export default function BikeRequestModal({
 
     if (!name.trim()) {
       setError("Please enter your full name.");
-      return;
-    }
-    if (!email || !email.includes("@")) {
-      setError("Please enter a valid email address.");
       return;
     }
     if (!phone.trim()) {
@@ -110,22 +97,15 @@ export default function BikeRequestModal({
     setLoading(true);
 
     try {
-      const res = await guestSubmitRental({
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        phone: phone.trim(),
-        planType,
-        startDate: effectiveDate,
-      });
-
-      if (res && res.success === false) {
-        setError(res.error || "Could not complete your request. Please try again.");
-        return;
+      if (typeof window !== "undefined") {
+        const opened = window.open(waUrl, "_blank");
+        if (!opened) {
+          window.location.href = waUrl;
+        }
       }
-
       setSuccess(true);
     } catch (err) {
-      setError(err.message || "Something went wrong. Please try again.");
+      setSuccess(true);
     } finally {
       setLoading(false);
     }
@@ -586,37 +566,6 @@ export default function BikeRequestModal({
                     placeholder="Full name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    style={{
-                      width: "100%",
-                      boxSizing: "border-box",
-                      padding: "11px 14px 11px 40px",
-                      borderRadius: "12px",
-                      border: "1.5px solid #e2e8f0",
-                      fontSize: "14px",
-                      color: "#0f172a",
-                      outline: "none",
-                    }}
-                  />
-                </div>
-
-                {/* Email Address */}
-                <div style={{ position: "relative" }}>
-                  <Mail
-                    size={16}
-                    style={{
-                      position: "absolute",
-                      left: "14px",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      color: "#94a3b8",
-                    }}
-                  />
-                  <input
-                    type="email"
-                    required
-                    placeholder="Email address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
                     style={{
                       width: "100%",
                       boxSizing: "border-box",

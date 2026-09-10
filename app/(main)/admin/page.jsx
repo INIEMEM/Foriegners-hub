@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import AdminOperations from "./AdminOperations";
 
 export const metadata = {
@@ -147,7 +148,29 @@ export default async function AdminPage() {
   const payments = paymentsResult.data || [];
   const bikes = bikesResult.data || [];
   const repairs = repairsResult.data || [];
-  const users = usersResult.data || [];
+  const rawUsers = usersResult.data || [];
+  let authUsersMap = new Map();
+  try {
+    const adminSupabase = createAdminClient();
+    const { data: authData } = await adminSupabase.auth.admin.listUsers({ perPage: 1000 });
+    if (authData?.users) {
+      authData.users.forEach((u) => {
+        authUsersMap.set(u.id, u.user_metadata || {});
+      });
+    }
+  } catch (err) {
+    console.warn("Could not list auth users metadata for admin:", err?.message);
+  }
+
+  const users = rawUsers.map((u) => {
+    const meta = authUsersMap.get(u.id) || {};
+    return {
+      ...u,
+      residence_permit_front_url: meta.residence_permit_front_url || u.residence_permit_front_url || null,
+      residence_permit_back_url: meta.residence_permit_back_url || u.residence_permit_back_url || null,
+      is_existing_rental: meta.is_existing_rental ?? false,
+    };
+  });
   const extensions = extensionsResult.data || [];
 
   // Convert settings array to a keyed object: { contract_terms: "...", ... }
@@ -155,7 +178,12 @@ export default async function AdminPage() {
     (settingsResult.data || []).map((s) => [s.id, s.value])
   );
 
+  const totalVerifiedRevenue = payments
+    .filter((p) => p.status === "VERIFIED")
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
   const stats = {
+    totalRevenue: totalVerifiedRevenue,
     activeRentals: rentals.filter((rental) => rental.status === "ACTIVE").length,
     pendingPayments: payments.filter((payment) => payment.status === "PAYMENT_SUBMITTED").length,
     upcomingReturns: rentals.filter(isUpcomingReturn).length,

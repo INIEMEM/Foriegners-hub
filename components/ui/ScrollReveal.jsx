@@ -30,6 +30,7 @@ export default function ScrollReveal({ children, delay = 0, className = "", as =
   return (
     <Tag
       ref={ref}
+      suppressHydrationWarning
       className={`${className} ${isVisible ? `fh-fade-in ${delayClass}` : "opacity-0"}`}
     >
       {children}

@@ -3,7 +3,7 @@ import Image from "next/image";
 
 export default function Footer() {
   return (
-    <footer className="fh-footer">
+    <footer className="fh-footer" suppressHydrationWarning>
       <div className="fh-container">
         <div className="fh-footer-card">
           <div className="fh-footer-brand">

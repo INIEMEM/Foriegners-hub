@@ -153,7 +153,7 @@ function Sidebar({ bike, selectedPlan, startDate, isReturningCustomer }) {
 
       {/* Trust badges */}
       <div style={{ display: "flex", flexDirection: "column", gap: "8px", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "16px" }}>
-        {["€50 deposit refunded on return", "Admin-verified before activation", "Cancel before bike is assigned"].map((t) => (
+        {["€50 deposit refunded on return", "Admin-verified before activation", "Direct WhatsApp admin support"].map((t) => (
           <div key={t} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "#94a3b8" }}>
             <ShieldCheck size={13} style={{ color: "#22c55e", flexShrink: 0 }} />
             {t}
@@ -185,7 +185,7 @@ export default function CheckoutFlow({ bike, profile, user, siteSettings = {}, i
   const todayStr = new Date().toISOString().split("T")[0];
 
   // WhatsApp link
-  const rawNumber = (siteSettings.whatsapp_number || "").replace(/\D/g, "");
+  const rawNumber = (siteSettings.whatsapp_number || "+37060291367").replace(/\D/g, "");
   const bikeRef = `FHUB-${bike.b_code}`;
   const waMessage = encodeURIComponent(
     `Hi Foreigners Hub! I just submitted a bike rental payment.\n\nRental ID: ${rentalId || "pending"}\nBike: ${bike.name} (${bikeRef})\nPlan: ${selectedPlan?.label || ""}\n\nPlease find my payment confirmation attached.`

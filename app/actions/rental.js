@@ -572,49 +572,13 @@ export async function submitExtensionPayment(formData) {
 
 /**
  * Cancels a rental (user-initiated)
+ * NOTE: Normal users cannot cancel rentals directly. Cancellations must be
+ * requested through and approved by the admin.
  */
-export async function cancelRental(formData) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
-
-  const rentalId = formData.get("rental_id");
-  if (!rentalId) throw new Error("Rental ID is required.");
-
-  const { data: rental, error: rentalError } = await supabase
-    .from("rentals")
-    .select("id, status, bike_id")
-    .eq("id", rentalId)
-    .eq("user_id", user.id)
-    .single();
-
-  if (rentalError || !rental) {
-    throw new Error("We could not find this rental.");
-  }
-
-  if (rental.status === "EXPIRED" || rental.status === "CANCELLED") {
-    throw new Error("This rental is already closed.");
-  }
-
-  const { error: cancelError } = await supabase
-    .from("rentals")
-    .update({ status: "CANCELLED", updated_at: new Date().toISOString() })
-    .eq("id", rental.id);
-
-  if (cancelError) {
-    throw new Error("Could not cancel the rental. Please try again.");
-  }
-
-  if (rental.bike_id) {
-    await supabase
-      .from("bikes")
-      .update({ status: "AVAILABLE", updated_at: new Date().toISOString() })
-      .eq("id", rental.bike_id);
-  }
-
-  revalidatePath("/dashboard");
-  revalidatePath("/admin");
-  return { success: true };
+export async function cancelRental() {
+  throw new Error(
+    "Rentals can only be cancelled by an administrator. Please contact our support team on WhatsApp at +37060291367 to process a cancellation or bike return."
+  );
 }
 
 /**

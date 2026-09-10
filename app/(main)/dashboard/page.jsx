@@ -167,7 +167,7 @@ function CurrentRental({ rental, pricingPlans, repairServices, siteSettings, use
               {showProgress ? (rental.bikes?.name || "Bike details unavailable") : "Bike to be assigned"}
             </h2>
             <p className="font-mono text-xs text-slate-500">
-              {showProgress ? (rental.bikes?.b_code || "B-Code unavailable") : "Pending assignment"}
+              {showProgress ? (rental.bikes?.b_code || "Bike Code unavailable") : "Pending assignment"}
             </p>
           </div>
         </div>
@@ -246,7 +246,7 @@ function CurrentRental({ rental, pricingPlans, repairServices, siteSettings, use
           </h3>
           <div className="space-y-3">
             <RepairRequestPanel rental={rental} repairServices={repairServices} />
-            <CancelRentalPanel rental={rental} />
+            <CancelRentalPanel rental={rental} siteSettings={siteSettings} />
           </div>
         </div>
       </div>

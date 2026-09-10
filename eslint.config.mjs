@@ -25,6 +25,7 @@ export default defineConfig([
         document: "readonly",
         fetch: "readonly",
         FormData: "readonly",
+        IntersectionObserver: "readonly",
         process: "readonly",
         require: "readonly",
         Response: "readonly",

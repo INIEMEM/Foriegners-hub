@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { randomUUID } from "crypto";
+import { Buffer } from "node:buffer";
 import { getSiteUrl, sendEmail } from "@/lib/email/service";
 import {
   paymentRejectedTemplate,
@@ -569,7 +570,7 @@ export async function saveBike(formData) {
   let imageUrl = cleanString(formData.get("image_url")) || null;
   const specifications = parseJsonField(formData.get("specifications"), {});
 
-  if (!bCode || !name) throw new Error("B-Code and bike name are required.");
+  if (!bCode || !name) throw new Error("Bike Code and bike name are required.");
   if (!bikeStatuses.includes(status)) throw new Error("Invalid bike status.");
 
   if (hasUploadedFile(imageFile)) {
@@ -613,7 +614,7 @@ export async function saveBike(formData) {
     : await duplicateQuery;
 
   if (duplicate && duplicate.length > 0) {
-    throw new Error("Another bike already uses this B-Code.");
+    throw new Error("Another bike already uses this Bike Code.");
   }
 
   if (id && status === "AVAILABLE") {
@@ -911,8 +912,151 @@ export async function assignBike(formData) {
 
   // (Optional) Email could be sent here
 
-  const { revalidatePath } = require("next/cache");
   revalidatePath("/admin");
   revalidatePath("/dashboard");
   return { success: true };
 }
+
+/**
+ * Cancels a rental (Admin-only)
+ * Releases assigned bike, marks pending payments as REJECTED, and notifies customer.
+ */
+export async function adminCancelRental(formDataOrId, reason = "") {
+  const { supabase, user } = await requireAdmin();
+  const rentalId = typeof formDataOrId === "string" ? formDataOrId : formDataOrId?.get?.("rental_id");
+
+  if (!rentalId) {
+    throw new Error("Rental ID is required.");
+  }
+
+  // 1. Get the current rental
+  const { data: rental, error: rError } = await supabase
+    .from("rentals")
+    .select("id, status, bike_id, user_id, profiles(email)")
+    .eq("id", rentalId)
+    .single();
+
+  if (rError || !rental) throw new Error("Rental not found.");
+  if (rental.status === "CANCELLED") {
+    throw new Error("This rental is already cancelled.");
+  }
+
+  const timestamp = new Date().toISOString();
+
+  // 2. Mark rental as CANCELLED
+  const { error: updateError } = await supabase
+    .from("rentals")
+    .update({
+      status: "CANCELLED",
+      updated_at: timestamp,
+    })
+    .eq("id", rentalId);
+
+  if (updateError) throw new Error("Failed to cancel rental.");
+
+  // 3. If a bike was assigned, return it to AVAILABLE if no other active rental is using it
+  if (rental.bike_id) {
+    const { data: activeRentals } = await supabase
+      .from("rentals")
+      .select("id")
+      .eq("bike_id", rental.bike_id)
+      .in("status", ["ACTIVE", "CONTRACT_PENDING"])
+      .neq("id", rentalId);
+
+    if (!activeRentals || activeRentals.length === 0) {
+      await supabase
+        .from("bikes")
+        .update({ status: "AVAILABLE", updated_at: timestamp })
+        .eq("id", rental.bike_id)
+        .in("status", ["RENTED", "RESERVED"]);
+    }
+  }
+
+  // 4. Reject any pending or submitted payments attached to this rental
+  await supabase
+    .from("payments")
+    .update({
+      status: "REJECTED",
+      rejected_at: timestamp,
+      rejected_by: user.id,
+      rejection_reason: cleanString(reason) || "Rental cancelled by admin",
+    })
+    .eq("rental_id", rentalId)
+    .in("status", ["PAYMENT_SUBMITTED", "PENDING", "AWAITING_PAYMENT"]);
+
+  // 5. Notify the user
+  await supabase.from("notifications").insert({
+    user_id: rental.user_id,
+    title: "Rental Cancelled",
+    message: reason
+      ? `Your rental has been cancelled by an administrator. Reason: ${reason}`
+      : "Your rental has been cancelled by an administrator. If you have any questions, please contact our support on WhatsApp at +37060291367.",
+    type: "ALERT",
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+  revalidatePath("/bikes");
+  return { success: true };
+}
+
+/**
+ * Permanently deletes a rental record (Admin-only)
+ * Cleans up related payments, contracts, extensions and returns bike to available.
+ */
+export async function adminDeleteRental(formDataOrId) {
+  const { supabase } = await requireAdmin();
+  const rentalId = typeof formDataOrId === "string" ? formDataOrId : formDataOrId?.get?.("rental_id");
+
+  if (!rentalId) {
+    throw new Error("Rental ID is required.");
+  }
+
+  // 1. Fetch rental
+  const { data: rental, error: rError } = await supabase
+    .from("rentals")
+    .select("id, bike_id")
+    .eq("id", rentalId)
+    .single();
+
+  if (rError || !rental) throw new Error("Rental not found.");
+
+  const timestamp = new Date().toISOString();
+
+  // 2. Free bike if no other active rental uses it
+  if (rental.bike_id) {
+    const { data: activeRentals } = await supabase
+      .from("rentals")
+      .select("id")
+      .eq("bike_id", rental.bike_id)
+      .in("status", ["ACTIVE", "CONTRACT_PENDING"])
+      .neq("id", rentalId);
+
+    if (!activeRentals || activeRentals.length === 0) {
+      await supabase
+        .from("bikes")
+        .update({ status: "AVAILABLE", updated_at: timestamp })
+        .eq("id", rental.bike_id)
+        .in("status", ["RENTED", "RESERVED"]);
+    }
+  }
+
+  // 3. Clean up related rows
+  await supabase.from("payments").delete().eq("rental_id", rentalId);
+  await supabase.from("contracts").delete().eq("rental_id", rentalId);
+  await supabase.from("rental_extensions").delete().eq("rental_id", rentalId);
+
+  // 4. Delete rental
+  const { error: deleteError } = await supabase
+    .from("rentals")
+    .delete()
+    .eq("id", rentalId);
+
+  if (deleteError) throw new Error("Could not delete rental: " + deleteError.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+  revalidatePath("/bikes");
+  return { success: true };
+}
+

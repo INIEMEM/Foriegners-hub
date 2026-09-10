@@ -15,11 +15,9 @@ import {
   MessageCircle,
   Bike,
   User,
-  Mail,
   Phone,
   Sparkles,
 } from "lucide-react";
-import { guestSubmitRental } from "@/app/actions/rental";
 
 const PLANS = [
   {
@@ -48,7 +46,6 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
   const [customDate, setCustomDate] = useState(() => searchParams.get("date") || "");
   const [selectedPlanId, setSelectedPlanId] = useState(() => searchParams.get("plan") || "weekly");
   const [guestName, setGuestName] = useState("");
-  const [guestEmail, setGuestEmail] = useState(() => user?.email || "");
   const [guestPhone, setGuestPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -58,9 +55,9 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
   const effectiveDate = dateChoice === "today" ? todayStr : customDate || todayStr;
   const depositAmount = isReturningCustomer ? 0 : 50;
 
-  const rawNumber = (siteSettings.whatsapp_number || "").replace(/\D/g, "");
+  const rawNumber = (siteSettings.whatsapp_number || "+37060291367").replace(/\D/g, "");
   const waMessage = encodeURIComponent(
-    `Hi Foreigners Hub! I just submitted a bike rental request.\nName: ${guestName}\nEmail: ${guestEmail}\nPhone: ${guestPhone}\nPlan: ${selectedPlan.label}\nStart date: ${effectiveDate}`
+    `Hi Foreigners Hub! I would like to request a bike rental.\n\n• Name: ${guestName.trim()}\n• Phone: ${guestPhone.trim()}\n• Plan: ${selectedPlan.label} (${selectedPlan.sublabel})\n• Preferred Start Date: ${effectiveDate}`
   );
   const waLink = rawNumber
     ? `https://wa.me/${rawNumber}?text=${waMessage}`
@@ -74,10 +71,6 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
       setError("Please enter your full name.");
       return;
     }
-    if (!guestEmail || !guestEmail.includes("@")) {
-      setError("Please enter a valid email address.");
-      return;
-    }
     if (!guestPhone.trim()) {
       setError("Please enter your phone number.");
       return;
@@ -89,23 +82,18 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
 
     setLoading(true);
 
+    // Transition immediately to WhatsApp discussion with admin
     try {
-      const res = await guestSubmitRental({
-        name: guestName.trim(),
-        email: guestEmail.trim().toLowerCase(),
-        phone: guestPhone.trim(),
-        planType: selectedPlanId,
-        startDate: effectiveDate,
-      });
-
-      if (res && res.success === false) {
-        setError(res.error || "Could not complete your request. Please try again.");
-        return;
+      if (typeof window !== "undefined") {
+        const opened = window.open(waLink, "_blank");
+        if (!opened) {
+          window.location.href = waLink;
+        }
       }
-
       setSuccess(true);
     } catch (err) {
-      setError(err.message || "Something went wrong. Please try again.");
+      setError("Could not open WhatsApp. Please click the WhatsApp button below.");
+      setSuccess(true);
     } finally {
       setLoading(false);
     }
@@ -217,10 +205,6 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "#64748b" }}>Phone:</span>
                 <strong style={{ color: "#0f172a" }}>{guestPhone}</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#64748b" }}>Email:</span>
-                <strong style={{ color: "#0f172a" }}>{guestEmail}</strong>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "#64748b" }}>Plan:</span>
@@ -504,36 +488,6 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
                     placeholder="Full name"
                     value={guestName}
                     onChange={(e) => setGuestName(e.target.value)}
-                    style={{
-                      width: "100%",
-                      boxSizing: "border-box",
-                      padding: "11px 14px 11px 40px",
-                      borderRadius: "12px",
-                      border: "1.5px solid #e2e8f0",
-                      fontSize: "14px",
-                      color: "#0f172a",
-                      outline: "none",
-                    }}
-                  />
-                </div>
-
-                <div style={{ position: "relative" }}>
-                  <Mail
-                    size={16}
-                    style={{
-                      position: "absolute",
-                      left: "14px",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      color: "#94a3b8",
-                    }}
-                  />
-                  <input
-                    type="email"
-                    required
-                    placeholder="Email address"
-                    value={guestEmail}
-                    onChange={(e) => setGuestEmail(e.target.value)}
                     style={{
                       width: "100%",
                       boxSizing: "border-box",
