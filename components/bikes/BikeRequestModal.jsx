@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { submitRentalRequest } from "@/app/actions/rental-requests";
 import {
   X,
   Calendar,
@@ -97,15 +98,24 @@ export default function BikeRequestModal({
     setLoading(true);
 
     try {
-      if (typeof window !== "undefined") {
-        const opened = window.open(waUrl, "_blank");
-        if (!opened) {
-          window.location.href = waUrl;
-        }
+      const res = await submitRentalRequest({
+        fullName: name.trim(),
+        phone: phone.trim(),
+        planType,
+        planLabel: planType === "weekly" ? "Weekly (€45/wk)" : "Pay at once (€170/mo)",
+        startDate: effectiveDate,
+      });
+
+      if (!res.success) {
+        setError(res.error || "Failed to submit rental request. Please try again.");
+        setLoading(false);
+        return;
       }
+
       setSuccess(true);
     } catch (err) {
-      setSuccess(true);
+      console.error("Rental request modal error:", err);
+      setError("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }

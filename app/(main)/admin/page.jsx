@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getRentalRequests } from "@/app/actions/rental-requests";
 import AdminOperations from "./AdminOperations";
 
 export const metadata = {
@@ -178,6 +179,8 @@ export default async function AdminPage() {
     (settingsResult.data || []).map((s) => [s.id, s.value])
   );
 
+  const rentalRequests = await getRentalRequests();
+
   const totalVerifiedRevenue = payments
     .filter((p) => p.status === "VERIFIED")
     .reduce((sum, p) => sum + Number(p.amount || 0), 0);
@@ -196,6 +199,8 @@ export default async function AdminPage() {
     pendingExtensions: extensions.filter((extension) =>
       ["REQUESTED", "AWAITING_PAYMENT", "PAYMENT_SUBMITTED", "PAYMENT_VERIFIED"].includes(extension.status)
     ).length,
+    newRentalRequests: rentalRequests.filter((r) => r.status === "NEW").length,
+    totalRentalRequests: rentalRequests.length,
   };
 
   const loadErrors = [
@@ -229,6 +234,7 @@ export default async function AdminPage() {
       repairServices={repairServicesResult.data || []}
       extensions={extensions}
       siteSettings={siteSettings}
+      rentalRequests={rentalRequests}
     />
   );
 }

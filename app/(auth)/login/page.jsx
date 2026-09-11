@@ -187,7 +187,7 @@ function LoginForm() {
               cursor: "pointer", listStyle: "none", padding: "10px 0",
               borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0",
             }}>
-              Got a 6-digit code instead? Enter it here ↓
+              Got a 8-digit code instead? Enter it here ↓
             </summary>
             <form onSubmit={handleVerifyOtp} style={{ display: "flex", flexDirection: "column", gap: "12px", paddingTop: "14px" }}>
               <input

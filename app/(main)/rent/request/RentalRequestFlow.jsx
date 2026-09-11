@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { submitRentalRequest } from "@/app/actions/rental-requests";
 import {
   ArrowLeft,
   ArrowRight,
@@ -82,18 +83,25 @@ export default function RentalRequestFlow({ user, siteSettings = {}, isReturning
 
     setLoading(true);
 
-    // Transition immediately to WhatsApp discussion with admin
     try {
-      if (typeof window !== "undefined") {
-        const opened = window.open(waLink, "_blank");
-        if (!opened) {
-          window.location.href = waLink;
-        }
+      const res = await submitRentalRequest({
+        fullName: guestName.trim(),
+        phone: guestPhone.trim(),
+        planType: selectedPlan.id,
+        planLabel: `${selectedPlan.label} (€${selectedPlan.price}${selectedPlan.id === "weekly" ? "/wk" : "/mo"})`,
+        startDate: effectiveDate,
+      });
+
+      if (!res.success) {
+        setError(res.error || "Failed to submit rental request. Please try again.");
+        setLoading(false);
+        return;
       }
+
       setSuccess(true);
     } catch (err) {
-      setError("Could not open WhatsApp. Please click the WhatsApp button below.");
-      setSuccess(true);
+      console.error("Rental request submission error:", err);
+      setError("An unexpected error occurred. Please try again or reach out to us.");
     } finally {
       setLoading(false);
     }

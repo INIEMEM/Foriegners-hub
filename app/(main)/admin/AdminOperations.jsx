@@ -5,16 +5,23 @@ import {
   Bike,
   Building2,
   CalendarDays,
+  Check,
   CheckCircle2,
+  Clock,
   CreditCard,
   DollarSign,
+  ExternalLink,
   Eye,
   FileText,
   ImageIcon,
   Loader2,
+  MessageCircle,
+  Phone,
   Search,
+  Sparkles,
   Trash2,
   TrendingUp,
+  UserCheck,
   Users,
   Wrench,
   X,
@@ -40,10 +47,15 @@ import {
   adminCancelRental,
   adminDeleteRental,
 } from "@/app/actions/admin";
+import {
+  updateRentalRequestStatus,
+  deleteRentalRequest,
+} from "@/app/actions/rental-requests";
 import { getPaymentStatusMeta, getRentalStatusMeta } from "@/lib/rental-status";
 
 const tabs = [
   { id: "overview", label: "Overview" },
+  { id: "requests", label: "Rental Requests" },
   { id: "finances", label: "Finances" },
   { id: "payments", label: "Payments" },
   { id: "rentals", label: "Rentals" },
@@ -240,8 +252,9 @@ function Modal({ title, children, onClose }) {
   );
 }
 
-function Overview({ stats, payments, rentals, repairs, setActiveTab }) {
+function Overview({ stats, payments, rentals, repairs, rentalRequests = [], setActiveTab }) {
   const cards = [
+    { label: "Rental requests", tab: "requests", value: stats.newRentalRequests || 0, icon: MessageCircle, color: "text-emerald-600", bg: "bg-emerald-50" },
     { label: "Total revenue", tab: "finances", value: formatCurrency(stats.totalRevenue), icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50" },
     { label: "Active rentals", tab: "rentals", value: stats.activeRentals, icon: Bike, color: "text-brand", bg: "bg-brand/10" },
     { label: "Pending payments", tab: "payments", value: stats.pendingPayments, icon: CreditCard, color: "text-orange-500", bg: "bg-orange-50" },
@@ -257,7 +270,7 @@ function Overview({ stats, payments, rentals, repairs, setActiveTab }) {
 
   return (
     <div className="space-y-8">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {cards.map((card) => {
           const Icon = card.icon;
           return (
@@ -279,6 +292,15 @@ function Overview({ stats, payments, rentals, repairs, setActiveTab }) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
+        {rentalRequests.length > 0 && (
+          <Panel title="New rental requests awaiting follow-up">
+            <RentalRequestsList
+              requests={rentalRequests.filter((r) => r.status === "NEW").slice(0, 5)}
+              compact
+              setActiveTab={setActiveTab}
+            />
+          </Panel>
+        )}
         <Panel title="Payment submissions awaiting verification">
           <PaymentList payments={payments.filter((payment) => payment.status === "PAYMENT_SUBMITTED").slice(0, 5)} compact />
         </Panel>
@@ -1595,6 +1617,369 @@ function SettingsPanel({ siteSettings }) {
   );
 }
 
+function RentalRequestsList({ requests = [], compact = false, setActiveTab }) {
+  if (!requests.length) {
+    return (
+      <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+        No new rental requests awaiting follow-up.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {requests.map((req) => {
+        const cleanPhone = (req.phone || "").replace(/\D/g, "");
+        const waMsg = encodeURIComponent(
+          `Hi ${req.fullName || "there"}! Thank you for requesting a bike rental at Foreigners Hub. We have received your request for the ${req.planLabel || "rental"} starting ${req.startDate || "soon"}. When would you like to visit our office to finalize your account and collect your bike?`
+        );
+
+        return (
+          <div
+            key={req.id || req.storageKey}
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 transition-all hover:border-slate-300"
+          >
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <h4 className="font-extrabold text-slate-900">{req.fullName}</h4>
+                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+                  {req.planLabel}
+                </span>
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                <span>📞 {req.phone}</span>
+                <span>📅 Preferred start: {formatDate(req.startDate)}</span>
+                <span>⏱ {formatDate(req.createdAt, true)}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <a
+                href={`https://wa.me/${cleanPhone}?text=${waMsg}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700"
+              >
+                <MessageCircle size={14} /> WhatsApp
+              </a>
+              <a
+                href={`tel:${req.phone}`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+              >
+                <Phone size={14} /> Call
+              </a>
+            </div>
+          </div>
+        );
+      })}
+      {compact && setActiveTab && (
+        <button
+          type="button"
+          onClick={() => setActiveTab("requests")}
+          className="mt-2 text-xs font-bold text-brand hover:underline inline-flex items-center gap-1"
+        >
+          View all rental requests ({requests.length}) →
+        </button>
+      )}
+    </div>
+  );
+}
+
+function RentalRequestsPanel({ requests = [] }) {
+  const [filter, setFilter] = useState("ALL");
+  const [query, setQuery] = useState("");
+  const [updatingId, setUpdatingId] = useState(null);
+  const [activeNoteModal, setActiveNoteModal] = useState(null);
+  const [noteInput, setNoteInput] = useState("");
+
+  const filtered = useMemo(() => {
+    return requests.filter((r) => {
+      if (filter !== "ALL" && r.status !== filter) return false;
+      if (!query.trim()) return true;
+      const q = query.toLowerCase();
+      return (
+        (r.fullName || "").toLowerCase().includes(q) ||
+        (r.phone || "").toLowerCase().includes(q) ||
+        (r.planLabel || "").toLowerCase().includes(q) ||
+        (r.notes || "").toLowerCase().includes(q)
+      );
+    });
+  }, [requests, filter, query]);
+
+  const countNew = requests.filter((r) => r.status === "NEW").length;
+  const countContacted = requests.filter((r) => r.status === "CONTACTED").length;
+  const countConverted = requests.filter((r) => r.status === "CONVERTED").length;
+  const countArchived = requests.filter((r) => r.status === "ARCHIVED").length;
+
+  async function handleStatus(id, newStatus, notes) {
+    setUpdatingId(id);
+    try {
+      await updateRentalRequestStatus(id, newStatus, notes);
+    } catch (err) {
+      alert("Error updating status: " + (err.message || err));
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function handleDelete(id) {
+    if (!confirm("Are you sure you want to remove this rental request?")) return;
+    setUpdatingId(id);
+    try {
+      await deleteRentalRequest(id);
+    } catch (err) {
+      alert("Error removing request: " + (err.message || err));
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  return (
+    <Panel title="Rental Requests & Prospective Leads">
+      <p className="-mt-3 mb-6 text-sm text-slate-600">
+        Review customers who submitted a bike rental request. Reach out via WhatsApp or Phone to qualify seriousness and coordinate office meetup to onboard their account.
+      </p>
+
+      {/* Filter Tabs & Search */}
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap gap-2">
+          {[
+            { id: "ALL", label: `All (${requests.length})` },
+            { id: "NEW", label: `New Leads (${countNew})` },
+            { id: "CONTACTED", label: `Contacted (${countContacted})` },
+            { id: "CONVERTED", label: `Converted (${countConverted})` },
+            { id: "ARCHIVED", label: `Archived (${countArchived})` },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setFilter(tab.id)}
+              className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition-all ${
+                filter === tab.id
+                  ? "bg-slate-900 text-white"
+                  : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="w-full sm:w-64">
+          <SearchBox value={query} onChange={setQuery} placeholder="Search by name, phone..." />
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-12 text-center">
+          <MessageCircle size={36} className="mx-auto mb-3 text-slate-400" />
+          <h3 className="font-bold text-slate-900">No rental requests found</h3>
+          <p className="mt-1 text-xs text-slate-500">
+            {query ? "No requests matched your search terms." : "Rental requests submitted by prospective users will appear here."}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filtered.map((req) => {
+            const cleanPhone = (req.phone || "").replace(/\D/g, "");
+            const waMsg = encodeURIComponent(
+              `Hi ${req.fullName || "there"}! Thank you for requesting a bike rental at Foreigners Hub. We have received your request for the ${req.planLabel || "rental"} starting ${req.startDate || "soon"}. When would you like to visit our office to finalize your account and collect your bike?`
+            );
+            const isUpdating = updatingId === (req.id || req.storageKey);
+
+            return (
+              <div
+                key={req.id || req.storageKey}
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
+              >
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  {/* Left Column: Details */}
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <span className="font-extrabold text-lg text-slate-950">{req.fullName}</span>
+
+                      {/* Status Tag */}
+                      {req.status === "NEW" && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-0.5 text-xs font-extrabold text-emerald-700 border border-emerald-200">
+                          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> New Request
+                        </span>
+                      )}
+                      {req.status === "CONTACTED" && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-0.5 text-xs font-extrabold text-blue-700 border border-blue-200">
+                          <Clock size={12} /> Contacted
+                        </span>
+                      )}
+                      {req.status === "CONVERTED" && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-3 py-0.5 text-xs font-extrabold text-purple-700 border border-purple-200">
+                          <UserCheck size={12} /> Account Created
+                        </span>
+                      )}
+                      {req.status === "ARCHIVED" && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-0.5 text-xs font-extrabold text-slate-600">
+                          Archived
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-slate-600">
+                      <div>
+                        <span className="font-semibold text-slate-400">Phone: </span>
+                        <a href={`tel:${req.phone}`} className="font-bold text-slate-900 hover:underline">
+                          {req.phone}
+                        </a>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-slate-400">Plan: </span>
+                        <span className="font-bold text-brand">{req.planLabel}</span>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-slate-400">Preferred Start: </span>
+                        <span className="font-bold text-slate-900">{formatDate(req.startDate)}</span>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-slate-400">Requested: </span>
+                        <span className="text-slate-700">{formatDate(req.createdAt, true)}</span>
+                      </div>
+                      {req.bikeName && (
+                        <div>
+                          <span className="font-semibold text-slate-400">Requested Bike: </span>
+                          <span className="font-bold text-slate-900">{req.bikeName}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {req.notes && (
+                      <div className="mt-2 rounded-xl bg-amber-50/70 border border-amber-200 p-2.5 text-xs text-amber-900">
+                        <span className="font-bold">Admin Note:</span> {req.notes}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right Column: Instant Actions */}
+                  <div className="flex flex-wrap items-center gap-2 pt-2 lg:pt-0">
+                    <a
+                      href={`https://wa.me/${cleanPhone}?text=${waMsg}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"
+                    >
+                      <MessageCircle size={15} /> Chat on WhatsApp
+                    </a>
+
+                    <a
+                      href={`tel:${req.phone}`}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                    >
+                      <Phone size={14} /> Call
+                    </a>
+
+                    {/* Status Modifiers */}
+                    {req.status === "NEW" && (
+                      <button
+                        type="button"
+                        disabled={isUpdating}
+                        onClick={() => handleStatus(req.id || req.storageKey, "CONTACTED")}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 transition-colors"
+                      >
+                        <Clock size={13} /> Mark Contacted
+                      </button>
+                    )}
+
+                    {req.status !== "CONVERTED" && (
+                      <button
+                        type="button"
+                        disabled={isUpdating}
+                        onClick={() => handleStatus(req.id || req.storageKey, "CONVERTED")}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700 hover:bg-purple-100 transition-colors"
+                      >
+                        <UserCheck size={13} /> Mark Converted
+                      </button>
+                    )}
+
+                    {req.status !== "ARCHIVED" && (
+                      <button
+                        type="button"
+                        disabled={isUpdating}
+                        onClick={() => handleStatus(req.id || req.storageKey, "ARCHIVED")}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800"
+                        title="Archive request"
+                      >
+                        Archive
+                      </button>
+                    )}
+
+                    {/* Add/Edit Note button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveNoteModal(req);
+                        setNoteInput(req.notes || "");
+                      }}
+                      className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                      title="Add note"
+                    >
+                      Note
+                    </button>
+
+                    {/* Delete */}
+                    <button
+                      type="button"
+                      disabled={isUpdating}
+                      onClick={() => handleDelete(req.id || req.storageKey)}
+                      className="inline-flex items-center rounded-xl p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      title="Delete lead"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Note Modal */}
+      {activeNoteModal && (
+        <Modal
+          title={`Note for ${activeNoteModal.fullName}`}
+          isOpen={Boolean(activeNoteModal)}
+          onClose={() => setActiveNoteModal(null)}
+        >
+          <div className="space-y-4">
+            <div>
+              <Label>Internal admin note</Label>
+              <textarea
+                rows={3}
+                value={noteInput}
+                onChange={(e) => setNoteInput(e.target.value)}
+                placeholder="e.g. Spoke on phone, coming to office Saturday at 14:00..."
+                className="mt-1.5 w-full rounded-xl border border-slate-200 p-3 text-sm focus:border-brand focus:outline-none"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setActiveNoteModal(null)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  await handleStatus(
+                    activeNoteModal.id || activeNoteModal.storageKey,
+                    activeNoteModal.status || "CONTACTED",
+                    noteInput
+                  );
+                  setActiveNoteModal(null);
+                }}
+              >
+                Save Note
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </Panel>
+  );
+}
+
 export default function AdminOperations({
   adminEmail,
   stats,
@@ -1611,6 +1996,7 @@ export default function AdminOperations({
   repairServices,
   extensions,
   siteSettings = {},
+  rentalRequests = [],
 }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [rentalQuery, setRentalQuery] = useState("");
@@ -1642,23 +2028,49 @@ export default function AdminOperations({
       )}
 
       <div className="mb-8 flex flex-wrap gap-2">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={`rounded-full px-4 py-2 text-sm font-bold transition-colors ${
-              activeTab === tab.id
-                ? "bg-brand text-white"
-                : "border border-slate-200 bg-white text-slate-600 hover:text-slate-950"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {tabs.map((tab) => {
+          const isRequests = tab.id === "requests";
+          const newCount = stats?.newRentalRequests || 0;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition-colors ${
+                activeTab === tab.id
+                  ? "bg-brand text-white"
+                  : "border border-slate-200 bg-white text-slate-600 hover:text-slate-950"
+              }`}
+            >
+              <span>{tab.label}</span>
+              {isRequests && newCount > 0 && (
+                <span
+                  className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-extrabold ${
+                    activeTab === tab.id ? "bg-white text-brand" : "bg-emerald-500 text-white"
+                  }`}
+                >
+                  {newCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {activeTab === "overview" && <Overview stats={stats} payments={payments} rentals={rentals} repairs={repairs} setActiveTab={setActiveTab} />}
+      {activeTab === "overview" && (
+        <Overview
+          stats={stats}
+          payments={payments}
+          rentals={rentals}
+          repairs={repairs}
+          rentalRequests={rentalRequests}
+          setActiveTab={setActiveTab}
+        />
+      )}
+
+      {activeTab === "requests" && (
+        <RentalRequestsPanel requests={rentalRequests} siteSettings={siteSettings} />
+      )}
 
       {activeTab === "finances" && (
         <FinancePanel
