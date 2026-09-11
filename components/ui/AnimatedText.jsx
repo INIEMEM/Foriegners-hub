@@ -4,14 +4,14 @@ import { useState, useEffect } from "react";
 
 const words = ["sorted.", "simplified.", "handled.", "covered."];
 
-export default function AnimatedText() {
+export default function AnimatedText({ className = "text-[#ffe267]" }) {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    const interval = window.setInterval(() => {
       setIndex((prev) => (prev + 1) % words.length);
     }, 2800);
-    return () => clearInterval(interval);
+    return () => window.clearInterval(interval);
   }, []);
 
   return (
@@ -35,7 +35,7 @@ export default function AnimatedText() {
         }}
       >
         {words.map((word, i) => (
-          <em key={i} className="not-italic text-[#315cff]">
+          <em key={i} className={`not-italic ${className}`}>
             {word}
           </em>
         ))}

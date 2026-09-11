@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import AnimatedText from "@/components/ui/AnimatedText";
 import ScrollReveal from "@/components/ui/ScrollReveal";
 import CountUp from "@/components/ui/CountUp";
+import { HomePlayfulDecorations } from "@/components/ui/PlayfulDecorations";
 
 export const metadata = {
   title: "Foreigners Hub — Student Bike & Apartment Rentals",
@@ -18,9 +19,9 @@ export default async function HomePage() {
   return (
     <div className="fh-shell" suppressHydrationWarning>
       {/* ─────────────────────────────────────────────────── */}
-      {/* HERO SECTION                                         */}
+      {/* HERO SECTION (New Manus Design)                     */}
       {/* ─────────────────────────────────────────────────── */}
-      <section className="fh-hero fh-grid-paper" id="top">
+      <section className="fh-hero" id="top">
         <div className="fh-container">
           <div className="fh-hero-grid">
             <ScrollReveal className="fh-hero-copy" delay={0}>
@@ -28,7 +29,7 @@ export default async function HomePage() {
                 <span className="fh-kicker-dot" />
                 City Essentials
               </div>
-              <h1>
+              <h1 className="fh-display">
                 The basics of a new city, <AnimatedText />
               </h1>
               <p className="fh-hero-lead">
@@ -44,7 +45,7 @@ export default async function HomePage() {
                 </Link>
               </div>
               <div className="fh-hero-note">
-                <ShieldCheck size={15} />
+                <ShieldCheck size={16} />
                 Real support, real listings, no bureaucratic maze.
               </div>
             </ScrollReveal>
@@ -53,17 +54,24 @@ export default async function HomePage() {
               <div className="fh-hero-image-wrap">
                 <video src="/hero-video.mp4" autoPlay muted loop playsInline />
               </div>
-              <div className="fh-hero-tag">Apartment Tour</div>
+              <div className="fh-hero-tag">built for newcomers</div>
               <div className="fh-hero-sticker">
                 <span>
-                  <MapPin size={15} />
+                  <Bike size={15} />
                 </span>
-                Move around. Settle in.
+                <div>
+                  <strong>Move around.</strong>
+                  <br />
+                  Settle in.
+                </div>
               </div>
-              <div className="fh-hero-route" />
+              <div className="fh-hero-route" aria-hidden="true" />
             </ScrollReveal>
           </div>
         </div>
+        <svg className="fh-hero-wave" viewBox="0 0 1440 100" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M0 62 C180 18 350 12 540 48 C760 90 980 88 1160 38 C1280 5 1360 12 1440 29 L1440 100 L0 100 Z" />
+        </svg>
       </section>
 
       {/* ─────────────────────────────────────────────────── */}
@@ -98,8 +106,9 @@ export default async function HomePage() {
       {/* ─────────────────────────────────────────────────── */}
       {/* TWO ESSENTIALS                                     */}
       {/* ─────────────────────────────────────────────────── */}
-      <section className="fh-page-section" id="services" style={{ background: "var(--fh-off-white)" }}>
-        <div className="fh-page-width">
+      <section className="fh-page-section relative overflow-hidden" id="services" style={{ background: "var(--fh-off-white)" }}>
+        <HomePlayfulDecorations />
+        <div className="fh-page-width relative z-10">
           <ScrollReveal className="fh-services-intro" delay={0}>
             <div>
               <div className="fh-section-kicker">

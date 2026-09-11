@@ -360,7 +360,7 @@ export default function BikeRequestModal({
                   lineHeight: 1.2,
                 }}
               >
-                Request a bike
+                Request an E-bike
               </h2>
               <p style={{ fontSize: "13px", color: "#64748b", marginTop: "4px" }}>
                 Select your start date, plan, and contact info. Our team will contact you to confirm pickup.

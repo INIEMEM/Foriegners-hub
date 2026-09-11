@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import RentalRequestFlow from "./RentalRequestFlow";
 import { Suspense } from "react";
+import { RequestPlayfulDecorations } from "@/components/ui/PlayfulDecorations";
 
 export const metadata = {
   title: "Start Your Rental | Foreigners Hub",
@@ -71,8 +72,9 @@ export default async function RentRequestPage() {
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--fh-off-white, #f8fafc)" }}>
-      <div className="fh-container py-10 md:py-14">
+    <div className="relative overflow-hidden" style={{ minHeight: "100vh", background: "var(--fh-off-white, #f8fafc)" }}>
+      <RequestPlayfulDecorations />
+      <div className="fh-container py-10 md:py-14 relative z-10">
         <Suspense fallback={<div style={{ textAlign: 'center', padding: '40px' }}>Loading...</div>}>
           <RentalRequestFlow
             user={user}

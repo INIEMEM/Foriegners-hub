@@ -20,6 +20,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import BikeRequestModal from "./BikeRequestModal";
+import { BikesPlayfulDecorations } from "@/components/ui/PlayfulDecorations";
 
 const INCLUDED_FEATURES = [
   {
@@ -122,8 +123,9 @@ export default function BikePageView({ siteSettings = {}, currentUser = null }) 
   return (
     <div style={{ background: "var(--fh-off-white, #f8fafc)" }}>
       {/* ── Hero ──────────────────────────────────────────── */}
-      <section style={{ background: "white", borderBottom: "1px solid #e8edf5" }}>
-        <div className="container mx-auto px-4 md:px-8 py-14 md:py-20">
+      <section className="relative overflow-hidden" style={{ background: "white", borderBottom: "1px solid #e8edf5" }}>
+        <BikesPlayfulDecorations />
+        <div className="container mx-auto px-4 md:px-8 py-14 md:py-20 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Copy */}
             <div>
@@ -154,14 +156,61 @@ export default function BikePageView({ siteSettings = {}, currentUser = null }) 
                 Bike Rental · Vilnius
               </span>
 
+              {/* Mobile Bike Visual & Request Button (mobile only: directly after badge, button directly under image) */}
+              <div className="block md:hidden mb-7 mt-1">
+                <div
+                  style={{
+                    borderRadius: "20px",
+                    overflow: "hidden",
+                    border: "1px solid #e2e8f0",
+                    boxShadow: "0 10px 25px rgba(15, 23, 42, 0.08)",
+                    background: "#ffffff",
+                    marginBottom: "16px",
+                  }}
+                >
+                  <img
+                    src="/images/engwe-m20.jpg"
+                    alt="Foreigners Hub City Rental Bike"
+                    style={{
+                      width: "100%",
+                      height: "230px",
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                  />
+                </div>
+
+                {/* Mobile Button directly under the image */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "stretch" }}>
+                  <button
+                    onClick={() => openRequestModal("weekly")}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "10px",
+                      background: "#315cff",
+                      color: "white",
+                      fontWeight: 700,
+                      fontSize: "16px",
+                      padding: "14px 28px",
+                      borderRadius: "14px",
+                      border: "none",
+                      cursor: "pointer",
+                      boxShadow: "0 8px 22px rgba(49, 92, 255, 0.28)",
+                      width: "100%",
+                    }}
+                  >
+                    Request an E-bike <ArrowRight size={17} />
+                  </button>
+                  <span style={{ fontSize: "13px", color: "#64748b", fontWeight: 500, textAlign: "center" }}>
+                    From <strong>€45/week</strong> · 1 month minimum
+                  </span>
+                </div>
+              </div>
+
               <h1
-                style={{
-                  fontSize: "clamp(34px, 5vw, 50px)",
-                  fontWeight: 800,
-                  color: "#0f172a",
-                  lineHeight: 1.18,
-                  marginBottom: "18px",
-                }}
+                className="!text-[26px] sm:!text-[29px] md:!text-[clamp(34px,5vw,50px)] !font-bold md:!font-extrabold leading-[1.22] md:leading-[1.18] text-slate-900 mb-3.5 md:mb-[18px]"
               >
                 A reliable city bike, <br />
                 <span style={{ color: "#315cff" }}>assigned just for you.</span>
@@ -214,8 +263,8 @@ export default function BikePageView({ siteSettings = {}, currentUser = null }) 
                 ))}
               </div>
 
-              {/* Action Button */}
-              <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+              {/* Action Button (Desktop/Tablet) */}
+              <div className="hidden md:flex" style={{ alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
                 <button
                   onClick={() => openRequestModal("weekly")}
                   style={{
@@ -236,7 +285,7 @@ export default function BikePageView({ siteSettings = {}, currentUser = null }) 
                   onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-2px)")}
                   onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
                 >
-                  Request a bike <ArrowRight size={17} />
+                  Request an E-bike <ArrowRight size={17} />
                 </button>
 
                 <span style={{ fontSize: "14px", color: "#64748b", fontWeight: 500 }}>
@@ -245,8 +294,8 @@ export default function BikePageView({ siteSettings = {}, currentUser = null }) 
               </div>
             </div>
 
-            {/* Bike Visual */}
-            <div>
+            {/* Bike Visual (Desktop / Tablet only) */}
+            <div className="hidden md:block">
               <div
                 style={{
                   borderRadius: "24px",
@@ -490,7 +539,7 @@ export default function BikePageView({ siteSettings = {}, currentUser = null }) 
                     transition: "all 0.2s",
                   }}
                 >
-                  Request a bike <ArrowRight size={16} />
+                  Request an E-bike <ArrowRight size={16} />
                 </button>
               </div>
             ))}
@@ -658,7 +707,7 @@ export default function BikePageView({ siteSettings = {}, currentUser = null }) 
                   cursor: "pointer",
                 }}
               >
-                Request a bike <ArrowRight size={16} />
+                Request an E-bike <ArrowRight size={16} />
               </button>
             </div>
 
@@ -710,7 +759,7 @@ export default function BikePageView({ siteSettings = {}, currentUser = null }) 
               boxShadow: "0 10px 25px rgba(49, 92, 255, 0.28)",
             }}
           >
-            Request a bike <ArrowRight size={17} />
+            Request an E-bike <ArrowRight size={17} />
           </button>
         </div>
       </section>

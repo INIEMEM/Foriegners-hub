@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Building2, BedDouble, CheckCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { ApartmentsPlayfulDecorations } from "@/components/ui/PlayfulDecorations";
 
 export const metadata = {
   title: "Apartments | Foreigners Hub",
@@ -20,8 +21,9 @@ export default async function ApartmentsPage() {
   return (
     <div className="bg-slate-50/70">
       {/* ── Page header ──────────────────────────────────── */}
-      <div className="border-b border-slate-200/70 bg-white">
-        <div className="container mx-auto px-4 py-16 md:px-8 md:py-20">
+      <div className="border-b border-slate-200/70 bg-white relative overflow-hidden">
+        <ApartmentsPlayfulDecorations />
+        <div className="container mx-auto px-4 py-16 md:px-8 md:py-20 relative z-10">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-8">
             <div>
               <div className="section-eyebrow mb-4 text-orange-DEFAULT">
