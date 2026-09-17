@@ -414,6 +414,7 @@
   inset: 0;
   background: linear-gradient(90deg, rgba(17, 33, 62, 0.12), transparent 50%), linear-gradient(0deg, rgba(22, 38, 74, 0.2), transparent 35%);
   pointer-events: none;
+  z-index: 3;
 }
 .fh-hero-image-wrap img,
 .fh-hero-image-wrap video {
@@ -421,6 +422,123 @@
   height: 100%;
   object-fit: cover;
   display: block;
+}
+.fh-hero-video-slide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 500ms ease, visibility 500ms ease;
+  z-index: 1;
+}
+.fh-hero-video-slide.active {
+  opacity: 1;
+  visibility: visible;
+  z-index: 2;
+}
+.fh-hero-video-slide video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.fh-hero-carousel-tabs {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  background: rgba(18, 32, 62, 0.45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+.fh-hero-carousel-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.85);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 180ms ease;
+  white-space: nowrap;
+}
+.fh-hero-carousel-tab:hover:not(.active) {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.15);
+}
+.fh-hero-carousel-tab.active {
+  background: #ffffff;
+  color: #12203e;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+.fh-hero-carousel-nav {
+  position: absolute;
+  bottom: 20px;
+  right: 22px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 8px;
+  background: rgba(18, 32, 62, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+.fh-hero-carousel-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 150ms ease;
+  padding: 0;
+}
+.fh-hero-carousel-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+  transform: scale(1.1);
+}
+.fh-hero-carousel-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 2px;
+}
+.fh-hero-carousel-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+.fh-hero-carousel-dot.active {
+  width: 16px;
+  border-radius: 999px;
+  background: #ffffff;
 }
 .fh-mark-watermark {
   position: absolute;
@@ -436,35 +554,49 @@
   position: absolute;
   left: -8px;
   bottom: 48px;
-  z-index: 3;
+  z-index: 12;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 15px;
-  border: 1px solid rgba(255, 255, 255, 0.7);
+  padding: 10px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
   border-radius: 13px;
   color: #203459;
-  background: rgba(255, 255, 255, 0.93);
+  background: rgba(255, 255, 255, 0.95);
   box-shadow: 0 16px 30px rgba(40, 61, 114, 0.15);
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 700;
+  white-space: nowrap;
 }
-.fh-hero-sticker span {
+.fh-hero-sticker .fh-hero-sticker-icon {
   display: inline-flex;
-  width: 27px;
-  height: 27px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
   background: #e8faed;
   color: #16a34a;
+  flex-shrink: 0;
+}
+.fh-hero-sticker .fh-hero-sticker-text {
+  display: inline-block;
+  width: auto;
+  height: auto;
+  background: transparent;
+  color: #203459;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 .fh-hero-tag {
   position: absolute;
   top: 38px;
   right: -18px;
-  z-index: 3;
-  padding: 9px 12px;
+  z-index: 12;
+  padding: 9px 14px;
   border-radius: 999px;
   color: #fff;
   background: #ea580c;
@@ -472,6 +604,7 @@
   font-weight: 700;
   transform: rotate(7deg);
   box-shadow: 0 10px 22px rgba(234, 88, 12, 0.2);
+  white-space: nowrap;
 }
 .fh-hero-route {
   position: absolute;
@@ -1422,8 +1555,46 @@
   }
   .fh-hero-visual { min-height: 360px; }
   .fh-hero-image-wrap { inset: 0 0 16px 0; border-radius: 18px 18px 60px 18px; }
-  .fh-hero-tag { right: 4px; top: 20px; }
-  .fh-hero-sticker { left: 10px; bottom: 22px; }
+  .fh-hero-carousel-tabs {
+    top: 12px;
+    left: 12px;
+    padding: 3px;
+    gap: 4px;
+  }
+  .fh-hero-carousel-tab {
+    padding: 5px 11px;
+    font-size: 0.7rem;
+    gap: 5px;
+  }
+  .fh-hero-carousel-nav {
+    bottom: 12px;
+    right: 12px;
+    padding: 3px 6px;
+    gap: 5px;
+  }
+  .fh-hero-carousel-btn {
+    width: 24px;
+    height: 24px;
+  }
+  .fh-hero-tag { right: 4px; top: 16px; font-size: 0.68rem; padding: 6px 10px; }
+  .fh-hero-sticker {
+    left: 10px;
+    bottom: 18px;
+    padding: 8px 12px;
+    font-size: 0.76rem;
+    gap: 8px;
+    max-width: calc(100% - 90px);
+    z-index: 12;
+  }
+  .fh-hero-sticker .fh-hero-sticker-icon {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+  }
+  .fh-hero-sticker .fh-hero-sticker-text {
+    font-size: 0.76rem;
+    white-space: nowrap;
+  }
   .fh-hero-route { right: 4px; bottom: -1px; width: 92px; height: 70px; }
   .fh-hero-lead { font-size: 0.98rem; }
   .fh-hero-actions { align-items: stretch; flex-direction: column; }

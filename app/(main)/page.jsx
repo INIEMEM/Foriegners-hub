@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import AnimatedText from "@/components/ui/AnimatedText";
 import ScrollReveal from "@/components/ui/ScrollReveal";
 import CountUp from "@/components/ui/CountUp";
+import HeroVideoCarousel from "@/components/ui/HeroVideoCarousel";
 import { HomePlayfulDecorations } from "@/components/ui/PlayfulDecorations";
 
 export const metadata = {
@@ -49,17 +50,7 @@ export default async function HomePage() {
             </ScrollReveal>
 
             <ScrollReveal className="fh-hero-visual" delay={1}>
-              <div className="fh-hero-image-wrap">
-                <video src="/hero-video.mp4" autoPlay muted loop playsInline />
-              </div>
-              <div className="fh-hero-tag">built for newcomers</div>
-              <div className="fh-hero-sticker">
-                <span>
-                  <MapPin size={15} />
-                </span>
-                Move around. Settle in.
-              </div>
-              <div className="fh-hero-route" />
+              <HeroVideoCarousel />
             </ScrollReveal>
           </div>
         </div>
