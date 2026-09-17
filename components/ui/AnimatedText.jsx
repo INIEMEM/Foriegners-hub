@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 
-const words = ["sorted.", "simplified.", "handled.", "covered."];
+const words = ["Live", "Work", "Earn", "Move"];
 
-export default function AnimatedText({ className = "text-[#ffe267]" }) {
+export default function AnimatedText({ className = "text-[#315cff]" }) {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export default function AnimatedText({ className = "text-[#ffe267]" }) {
         The invisible placeholder dictates the EXACT width and height of this container.
         Because it is in the normal document flow, it locks the height to exactly 1 line. 
       */}
-      <em className="invisible not-italic">simplified.</em>
+      <em className="invisible not-italic">move</em>
       
       {/* 
         The scrolling text is absolutely positioned.

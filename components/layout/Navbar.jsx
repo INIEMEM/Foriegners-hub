@@ -8,9 +8,9 @@ import Logo from "@/components/shared/Logo";
 import { createClient } from "@/lib/supabase/client";
 
 const navLinks = [
-  { label: "What's available", href: "/#services" },
-  { label: "Bike plans", href: "/#pricing" },
+  { label: "Services & pricing", href: "/#services" },
   { label: "How it works", href: "/#process" },
+  { label: "Why us", href: "/#why-us" },
 ];
 
 export default function Navbar() {

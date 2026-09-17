@@ -9,12 +9,12 @@ export default function Footer() {
           <div className="fh-footer-brand">
             <Link href="/" className="fh-footer-logo-box">
               <Image
-                src="/logo.jpg"
+                src="/logo.png"
                 alt="Foreigners Hub Logo"
-                width={110}
-                height={40}
+                width={70}
+                height={61}
                 className="fh-footer-logo-img"
-                style={{ width: "105px", height: "auto" }}
+                style={{ width: "64px", height: "auto" }}
               />
             </Link>
             <p className="fh-footer-desc">

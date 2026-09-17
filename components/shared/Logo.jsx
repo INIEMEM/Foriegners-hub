@@ -4,29 +4,38 @@ import Image from "next/image";
 /**
  * Foreigners Hub logo.
  */
-export default function Logo({ className = "", light = false, asLink = true }) {
+export default function Logo({
+  className = "",
+  light = false,
+  asLink = true,
+  withText = true,
+  width = 38,
+  height,
+}) {
+  const calculatedHeight = height || Math.round(width * (444 / 464));
   const content = (
-    <Image 
-      src="/logo.jpg" 
-      alt="Foreigners Hub Logo" 
-      width={100} 
-      height={25}
-      className="object-contain"
-      style={{ width: "auto", height: "auto" }}
-      priority
-    />
+    <span className={`fh-logo-wrap ${light ? "fh-logo-light" : ""} ${className}`}>
+      <Image 
+        src="/logo-mark.png" 
+        alt="Foreigners Hub Logo" 
+        width={width} 
+        height={calculatedHeight}
+        className="object-contain fh-logo-img"
+        style={{ width: `${width}px`, height: "auto" }}
+        priority
+      />
+      {withText && (
+        <span className="fh-logo-text">Foreigners Hub</span>
+      )}
+    </span>
   );
 
   if (!asLink) {
-    return (
-      <div className={`inline-flex items-center gap-0 select-none ${className}`}>
-        {content}
-      </div>
-    );
+    return content;
   }
 
   return (
-    <Link href="/" className={`inline-flex items-center gap-0 select-none ${className}`}>
+    <Link href="/" className="fh-logo-link">
       {content}
     </Link>
   );

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, ShieldCheck, MapPin, Headphones, Check, Bike, Lock, Repeat, Tag, Wrench, Shield, Key, Clock, Users } from "lucide-react";
+import { ArrowUpRight, ShieldCheck, MapPin, Headphones, Check, Bike, Tag, Key, Clock, Users, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import AnimatedText from "@/components/ui/AnimatedText";
 import ScrollReveal from "@/components/ui/ScrollReveal";
@@ -13,40 +13,38 @@ export const metadata = {
 
 export default async function HomePage() {
   const supabase = await createClient();
-  const { data: bikes } = await supabase.from("bikes").select("*, bike_categories(name)").eq("status", "AVAILABLE").order("created_at", { ascending: false }).limit(3);
   const { data: apartments } = await supabase.from("apartments").select("*").eq("status", "AVAILABLE").order("created_at", { ascending: false }).limit(3);
 
   return (
     <div className="fh-shell" suppressHydrationWarning>
       {/* ─────────────────────────────────────────────────── */}
-      {/* HERO SECTION (New Manus Design)                     */}
+      {/* HERO SECTION                                         */}
       {/* ─────────────────────────────────────────────────── */}
-      <section className="fh-hero" id="top">
+      <section className="fh-hero fh-grid-paper" id="top">
         <div className="fh-container">
           <div className="fh-hero-grid">
             <ScrollReveal className="fh-hero-copy" delay={0}>
               <div className="fh-kicker">
-                <span className="fh-kicker-dot" />
-                City Essentials
+                {/* <span className="fh-kicker-dot" /> */}
+                # Trusted by Foreigners in Lithuania
               </div>
               <h1 className="fh-display">
-                The basics of a new city, <AnimatedText />
+                One Hub. Everything You Need to <AnimatedText />
               </h1>
               <p className="fh-hero-lead">
-                Your new life in Vilnius starts here.<br />
-                Affordable rooms. Reliable bikes. Zero hassle.
+                Find a room that fits your budget, or rent an e-bike for courier work. And if you need both, we’ve got you covered
               </p>
               <div className="fh-hero-actions">
                 <Link href="/bikes" className="fh-primary-btn">
                   Rent a bike <ArrowUpRight size={16} />
                 </Link>
-                <Link href="/#process" className="fh-ghost-btn">
-                  See how it works
+                <Link href="/apartments" className="fh-ghost-btn">
+                  Browse apartments <ArrowUpRight size={16} />
                 </Link>
               </div>
               <div className="fh-hero-note">
-                <ShieldCheck size={16} />
-                Real support, real listings, no bureaucratic maze.
+                <ShieldCheck size={15} />
+                Real support, verified listings, no bureaucratic maze.
               </div>
             </ScrollReveal>
 
@@ -57,21 +55,14 @@ export default async function HomePage() {
               <div className="fh-hero-tag">built for newcomers</div>
               <div className="fh-hero-sticker">
                 <span>
-                  <Bike size={15} />
+                  <MapPin size={15} />
                 </span>
-                <div>
-                  <strong>Move around.</strong>
-                  <br />
-                  Settle in.
-                </div>
+                Move around. Settle in.
               </div>
-              <div className="fh-hero-route" aria-hidden="true" />
+              <div className="fh-hero-route" />
             </ScrollReveal>
           </div>
         </div>
-        <svg className="fh-hero-wave" viewBox="0 0 1440 100" preserveAspectRatio="none" aria-hidden="true">
-          <path d="M0 62 C180 18 350 12 540 48 C760 90 980 88 1160 38 C1280 5 1360 12 1440 29 L1440 100 L0 100 Z" />
-        </svg>
       </section>
 
       {/* ─────────────────────────────────────────────────── */}
@@ -112,15 +103,15 @@ export default async function HomePage() {
           <ScrollReveal className="fh-services-intro" delay={0}>
             <div>
               <div className="fh-section-kicker">
-                <span className="fh-kicker-pill" /> The essentials
+                <span className="fh-kicker-pill" /> Bikes and apartments
               </div>
               <h2>
-                What you need. <br />
-                <span>Nothing you don't.</span>
+                Set up your stay. <br />
+                <span>Move around easily.</span>
               </h2>
             </div>
             <p>
-              We focus on the two things that matter most when you arrive: a reliable way to get to class, and a trustworthy place to live.
+              Foreigners Hub helps students get the basics sorted before and after arrival: a safe place to live and a reliable bike for everyday movement.
             </p>
           </ScrollReveal>
 
@@ -140,16 +131,21 @@ export default async function HomePage() {
                   <span>bikes.</span>
                 </h3>
                 <p>Maintained, secure, and ready to ride. Flexible plans tailored for student terms.</p>
+                <div className="fh-service-facts" aria-label="Bike rental highlights">
+                  <span>From €45 / week</span>
+                  <span>€170 / month</span>
+                  <span>Repairs included</span>
+                </div>
               </div>
               <div className="fh-service-image fh-bike-image">
                 <img src="/images/engwe-m20.jpg" alt="Student bike" />
               </div>
               <div className="fh-service-card-bottom">
                 <span>
-                  From <strong>€45</strong> / 1 week
+                  Bike rental
                 </span>
                 <Link href="/bikes" className="fh-inline-arrow">
-                  View plans <ArrowUpRight size={14} />
+                  See full plans <ArrowUpRight size={14} />
                 </Link>
               </div>
             </ScrollReveal>
@@ -168,13 +164,29 @@ export default async function HomePage() {
                   Student <br />
                   <span>housing.</span>
                 </h3>
-                <p>Verified shared apartments with clear terms and local support.</p>
+                <p>Verified private rooms and shared flats across Vilnius. Move-in ready with flexible semester leases.</p>
+                <div className="fh-service-facts fh-service-facts-light" aria-label="Apartment rental highlights">
+                  <span>From €200 / month</span>
+                  <span>Furnished rooms</span>
+                  <span>Flexible leases</span>
+                </div>
               </div>
               <div className="fh-service-image fh-apartment-image">
-                <div style={{ width: "100%", height: "100%", background: "#eac097" }} />
+                {apartments?.[0]?.image_urls?.[0] ? (
+                  <img src={apartments[0].image_urls[0]} alt="Student apartment in Vilnius" />
+                ) : (
+                  <div className="fh-apartment-placeholder">
+                    <div className="fh-apartment-badge">
+                      <Building2 size={16} />
+                      <span>Furnished Student Flats</span>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="fh-service-card-bottom">
-                <span>Flexible lease terms</span>
+                <span>
+                  Apartment rental
+                </span>
                 <Link href="/apartments" className="fh-inline-arrow">
                   View listings <ArrowUpRight size={14} />
                 </Link>
@@ -211,70 +223,6 @@ export default async function HomePage() {
       </div>
 
       {/* ─────────────────────────────────────────────────── */}
-      {/* PRICING                                            */}
-      {/* ─────────────────────────────────────────────────── */}
-      <section className="fh-pricing-section" id="pricing">
-        <div className="fh-container">
-          <ScrollReveal className="fh-pricing-top" delay={0}>
-            <div>
-              <h2>
-                Choose a plan. We'll <br />
-                keep you <em>moving.</em>
-              </h2>
-            </div>
-            {/* <div>
-              <p>Pick your rhythm. Every plan includes a maintained bike, transparent pricing, and no separate repair bill.</p>
-              <div className="fh-pricing-switcher">
-                <button className="fh-plan-toggle active">City bike</button>
-                <button className="fh-plan-toggle">E-bike soon</button>
-              </div>
-            </div> */}
-          </ScrollReveal>
-
-          <div className="fh-price-cards">
-            <ScrollReveal className="fh-price-card-full" delay={1}>
-              <div className="fh-price-duration-label">DURATION</div>
-              <div className="fh-price-duration-value">1 week</div>
-              <div className="fh-price-amount">
-                <span className="fh-price-euro">€45</span>
-                <span className="fh-price-total-label">total rental</span>
-              </div>
-              <p className="fh-price-note">Ideal for arrivals, flat-hunting, and quick city orientation.</p>
-              <ul className="fh-price-features">
-                <li><Check size={14} /> Maintained city bike with gears</li>
-                <li><Check size={14} /> Heavy duty lock &amp; safety lights</li>
-                <li><Check size={14} /> €50 refundable deposit</li>
-                <li><Check size={14} /> Extend rental anytime</li>
-              </ul>
-              <Link href="/rent" className="fh-select-plan-btn">
-                Select 1-week plan
-              </Link>
-            </ScrollReveal>
-
-            <ScrollReveal className="fh-price-card-full featured" delay={2}>
-              <div className="fh-best-value">BEST VALUE</div>
-              <div className="fh-price-duration-label">DURATION</div>
-              <div className="fh-price-duration-value">1 month</div>
-              <div className="fh-price-amount">
-                <span className="fh-price-euro">€170</span>
-                <span className="fh-price-total-label">total rental</span>
-              </div>
-              <p className="fh-price-note">Most popular among exchange students &amp; first-term stays.</p>
-              <ul className="fh-price-features">
-                <li><Check size={14} /> Free priority repairs &amp; maintenance</li>
-                <li><Check size={14} /> Premium lock, basket, and LED lights</li>
-                <li><Check size={14} /> Free bike swap if needed</li>
-                <li><Check size={14} /> Student perk discount applied</li>
-              </ul>
-              <Link href="/rent" className="fh-select-plan-btn">
-                Select 1-month plan
-              </Link>
-            </ScrollReveal>
-          </div>
-        </div>
-      </section>
-
-      {/* ─────────────────────────────────────────────────── */}
       {/* PROCESS                                            */}
       {/* ─────────────────────────────────────────────────── */}
       <section className="fh-process-section" id="process">
@@ -286,10 +234,17 @@ export default async function HomePage() {
                 Simple process. <br />
                 <em>No friction.</em>
               </h2>
-              <p>Everything is handled online. No need to visit an office just to sign a paper. Arrive, tap, ride.</p>
-              <Link href="/bikes" className="fh-process-link">
-                View available bikes <ArrowUpRight size={14} />
-              </Link>
+              <p>
+                Choose what you need, complete the agreement online, and arrive with your transport and housing plan already clear.
+              </p>
+              <div className="fh-process-links-wrap fh-process-desktop-actions">
+                <Link href="/bikes" className="fh-process-link">
+                  View bikes <ArrowUpRight size={14} />
+                </Link>
+                <Link href="/apartments" className="fh-process-link">
+                  Browse apartments <ArrowUpRight size={14} />
+                </Link>
+              </div>
             </ScrollReveal>
 
             <ScrollReveal className="fh-process-list" delay={1}>
@@ -299,8 +254,8 @@ export default async function HomePage() {
                 </div>
                 <div className="fh-step-no">01</div>
                 <div>
-                  <h3>Pick your plan</h3>
-                  <p>Choose the duration that fits your stay. Weekly for quick visits, monthly for full semesters.</p>
+                  <h3>Choose your essentials</h3>
+                  <p>Pick your bike rental plan, browse verified student apartments, or request both together.</p>
                 </div>
               </div>
               <div className="fh-process-step">
@@ -309,8 +264,8 @@ export default async function HomePage() {
                 </div>
                 <div className="fh-step-no">02</div>
                 <div>
-                  <h3>Sign &amp; pay digitally</h3>
-                  <p>Complete the contract on your phone. Pay securely. We verify everything on our end.</p>
+                  <h3>Book &amp; sign digitally</h3>
+                  <p>Complete your agreement on your phone with zero paperwork and secure local payment verification.</p>
                 </div>
               </div>
               <div className="fh-process-step">
@@ -319,8 +274,18 @@ export default async function HomePage() {
                 </div>
                 <div className="fh-step-no">03</div>
                 <div>
-                  <h3>Unlock &amp; ride</h3>
-                  <p>Get your bike details and pick-up instructions. You're ready to explore the city.</p>
+                  <h3>Move in &amp; ride</h3>
+                  <p>Collect your ready bike and receive your room keys. 24/7 student support throughout your stay in Vilnius.</p>
+                </div>
+              </div>
+              <div className="fh-process-step">
+                <div className="fh-step-marker">
+                  <Check size={12} />
+                </div>
+                <div className="fh-step-no">04</div>
+                <div>
+                  <h3>Settle with support</h3>
+                  <p>Use your dashboard for contracts, payments, renewals, and support whenever you need help.</p>
                 </div>
               </div>
             </ScrollReveal>
@@ -331,7 +296,7 @@ export default async function HomePage() {
       {/* ─────────────────────────────────────────────────── */}
       {/* VALUES                                             */}
       {/* ─────────────────────────────────────────────────── */}
-      <section className="fh-values">
+      <section className="fh-values" id="why-us">
         <div className="fh-container">
           <div className="fh-values-layout">
             <ScrollReveal delay={0}>
@@ -348,28 +313,28 @@ export default async function HomePage() {
                   <Tag size={16} />
                 </div>
                 <h3>No hidden fees</h3>
-                <p>Clear pricing upfront. No surprise charges when you return the bike or sign the lease.</p>
+                <p>Clear bike rental rates and transparent apartment utilities. No unexpected move-out fees or deposit surprises.</p>
               </div>
               <div className="fh-value">
                 <div className="fh-value-icon">
                   <Key size={16} />
                 </div>
                 <h3>Digital contracts</h3>
-                <p>Everything is signed electronically. You always have access to your rental documents.</p>
+                <p>Everything is signed electronically from anywhere before you land, with permanent access in your dashboard.</p>
               </div>
               <div className="fh-value">
                 <div className="fh-value-icon">
-                  <Wrench size={16} />
+                  <ShieldCheck size={16} />
                 </div>
-                <h3>Maintained fleet</h3>
-                <p>Every bike is checked before it goes out. Free repairs on monthly plans.</p>
+                <h3>Verified &amp; maintained</h3>
+                <p>Bikes are safety-checked and repaired for free; apartments are vetted for clean, comfortable student living.</p>
               </div>
               <div className="fh-value">
                 <div className="fh-value-icon">
                   <Headphones size={16} />
                 </div>
-                <h3>Human support</h3>
-                <p>Real help when you need it. Fast responses to get you back on track.</p>
+                <h3>Local human support</h3>
+                <p>Direct WhatsApp assistance with our team in Vilnius for fast, friendly help whenever you need it.</p>
               </div>
             </ScrollReveal>
           </div>
@@ -393,7 +358,7 @@ export default async function HomePage() {
             </ScrollReveal>
             <ScrollReveal delay={1}>
               <p className="fh-cta-copy">
-                Browse bikes available now and complete your rental entirely online — no paperwork, no queues.
+                Get your bike and student apartment sorted before you land in Vilnius. Transparent pricing, digital contracts, and zero hassle.
               </p>
               <div className="fh-cta-actions">
                 <Link href="/bikes" className="fh-primary-btn">
