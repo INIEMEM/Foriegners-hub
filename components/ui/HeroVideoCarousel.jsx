@@ -1,26 +1,20 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Bike, Building2, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import { Bike, Building2 } from "lucide-react";
 
 const slides = [
-  {
-    id: "bike",
-    title: "E-Bikes",
-    videoSrc: "/bike-video.mp4",
-    tag: "⚡ E-Bike for rent",
-    tagColor: "#ea580c",
-    stickerIcon: Bike,
-    stickerText: "Move around & earn",
-  },
   {
     id: "apartment",
     title: "Apartments",
     videoSrc: "/hero-video.mp4",
-    tag: "🏠 Student apartment",
-    tagColor: "#315cff",
-    stickerIcon: Building2,
-    stickerText: "Move in. Settle in.",
+    icon: Building2,
+  },
+  {
+    id: "bike",
+    title: "E-Bikes",
+    videoSrc: "/bike-video.mp4",
+    icon: Bike,
   },
 ];
 
@@ -28,8 +22,6 @@ export default function HeroVideoCarousel() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const videoRefs = useRef([]);
-
-  const currentSlide = slides[activeIndex];
 
   // Auto-advance carousel every 8 seconds unless hovered
   useEffect(() => {
@@ -56,16 +48,6 @@ export default function HeroVideoCarousel() {
       }
     });
   }, [activeIndex]);
-
-  function handlePrev() {
-    setActiveIndex((prev) => (prev - 1 + slides.length) % slides.length);
-  }
-
-  function handleNext() {
-    setActiveIndex((prev) => (prev + 1) % slides.length);
-  }
-
-  const StickerIcon = currentSlide.stickerIcon || MapPin;
 
   return (
     <>
@@ -97,7 +79,7 @@ export default function HeroVideoCarousel() {
         <div className="fh-hero-carousel-tabs" role="tablist">
           {slides.map((slide, idx) => {
             const isActive = idx === activeIndex;
-            const Icon = slide.stickerIcon;
+            const Icon = slide.icon;
             return (
               <button
                 key={slide.id}
@@ -114,16 +96,8 @@ export default function HeroVideoCarousel() {
           })}
         </div>
 
-        {/* Carousel arrows & dots */}
-        <div className="fh-hero-carousel-nav">
-          <button
-            type="button"
-            className="fh-hero-carousel-btn prev"
-            onClick={handlePrev}
-            aria-label="Previous video"
-          >
-            <ChevronLeft size={16} />
-          </button>
+        {/* Carousel pagination dots */}
+        <div className="fh-hero-carousel-nav" role="tablist" aria-label="Slide indicators">
           <div className="fh-hero-carousel-dots">
             {slides.map((slide, idx) => (
               <button
@@ -135,34 +109,7 @@ export default function HeroVideoCarousel() {
               />
             ))}
           </div>
-          <button
-            type="button"
-            className="fh-hero-carousel-btn next"
-            onClick={handleNext}
-            aria-label="Next video"
-          >
-            <ChevronRight size={16} />
-          </button>
         </div>
-      </div>
-
-      {/* Floating Tag */}
-      <div
-        className="fh-hero-tag"
-        style={{
-          background: currentSlide.tagColor,
-          transition: "background 0.3s ease, transform 0.2s ease",
-        }}
-      >
-        {currentSlide.tag}
-      </div>
-
-      {/* Floating Sticker */}
-      <div className="fh-hero-sticker">
-        <span className="fh-hero-sticker-icon">
-          <StickerIcon size={15} />
-        </span>
-        <span className="fh-hero-sticker-text">{currentSlide.stickerText}</span>
       </div>
 
       <div className="fh-hero-route" />

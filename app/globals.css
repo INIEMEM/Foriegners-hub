@@ -488,12 +488,12 @@
 .fh-hero-carousel-nav {
   position: absolute;
   bottom: 20px;
-  right: 22px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 10;
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 4px 8px;
+  padding: 6px 12px;
   background: rgba(18, 32, 62, 0.5);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -501,29 +501,11 @@
   border-radius: 999px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
 }
-.fh-hero-carousel-btn {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  color: #ffffff;
-  cursor: pointer;
-  transition: all 150ms ease;
-  padding: 0;
-}
-.fh-hero-carousel-btn:hover {
-  background: rgba(255, 255, 255, 0.22);
-  transform: scale(1.1);
-}
 .fh-hero-carousel-dots {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 0 2px;
+  gap: 6px;
+  padding: 0;
 }
 .fh-hero-carousel-dot {
   width: 6px;
@@ -535,8 +517,11 @@
   cursor: pointer;
   transition: all 200ms ease;
 }
+.fh-hero-carousel-dot:hover {
+  background: rgba(255, 255, 255, 0.85);
+}
 .fh-hero-carousel-dot.active {
-  width: 16px;
+  width: 18px;
   border-radius: 999px;
   background: #ffffff;
 }
@@ -650,7 +635,8 @@
 .fh-proof-item:first-child { padding-left: 0; }
 .fh-proof-item:last-child { border-right: 0; }
 .fh-proof-item svg { flex: 0 0 auto; color: #315cff; }
-.fh-proof-item strong { display: block; margin-bottom: 2px; color: #1c2d4c; font-size: 0.88rem; }
+.fh-proof-item strong { display: block; margin-bottom: 2px; color: #1c2d4c; font-size: 0.88rem; font-weight: 700; }
+.fh-proof-item strong span { color: inherit; font-size: inherit; font-weight: inherit; }
 .fh-proof-item span { color: #8190a7; font-size: 0.75rem; }
 
 /* ── SECTIONS ── */
@@ -1568,13 +1554,11 @@
   }
   .fh-hero-carousel-nav {
     bottom: 12px;
-    right: 12px;
-    padding: 3px 6px;
-    gap: 5px;
-  }
-  .fh-hero-carousel-btn {
-    width: 24px;
-    height: 24px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    padding: 5px 10px;
+    gap: 6px;
   }
   .fh-hero-tag { right: 4px; top: 16px; font-size: 0.68rem; padding: 6px 10px; }
   .fh-hero-sticker {
@@ -1694,5 +1678,29 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Bike Included Features (Desktop Grid vs Mobile Collapsible) ── */
+.fh-bike-features-desktop {
+  display: none;
+}
+.fh-bike-features-mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+@media (min-width: 768px) {
+  .fh-bike-features-desktop {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+    gap: 24px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .fh-bike-features-mobile {
+    display: none !important;
   }
 }

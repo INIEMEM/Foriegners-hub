@@ -37,15 +37,15 @@ export default async function HomePage() {
               </p>
               <div className="fh-hero-actions">
                 <Link href="/bikes" className="fh-primary-btn">
-                  Rent a bike <ArrowUpRight size={16} />
+                  Rent E-Bike <ArrowUpRight size={16} />
                 </Link>
                 <Link href="/apartments" className="fh-ghost-btn">
-                  Browse apartments <ArrowUpRight size={16} />
+                  Rent Apartment <ArrowUpRight size={16} />
                 </Link>
               </div>
               <div className="fh-hero-note">
                 <ShieldCheck size={15} />
-                Real support, verified listings, no bureaucratic maze.
+                Real Support, Verified Listings, Simple Process.
               </div>
             </ScrollReveal>
 
@@ -65,21 +65,21 @@ export default async function HomePage() {
             <Clock size={22} />
             <div>
               <strong>24/7 Support</strong>
-              <span>We're here whenever you need us</span>
+              <span>We're Here Whenever you Need us</span>
             </div>
           </ScrollReveal>
           <ScrollReveal className="fh-proof-item" delay={1}>
             <Users size={22} />
             <div>
-              <strong><CountUp target={500} />+ clients</strong>
-              <span>Successfully accommodated</span>
+              <strong><CountUp target={500} />+ Clients</strong>
+              <span>Successfully Accommodated</span>
             </div>
           </ScrollReveal>
           <ScrollReveal className="fh-proof-item" delay={2}>
             <Bike size={22} />
             <div>
-              <strong>150 bikes rented</strong>
-              <span>Maintained &amp; ready to ride</span>
+              <strong>150+ Bikes Rented</strong>
+              <span>Maintained &amp; Ready to Ride</span>
             </div>
           </ScrollReveal>
         </div>
@@ -118,7 +118,7 @@ export default async function HomePage() {
               </div>
               <div className="fh-service-card-copy">
                 <h3>
-                  City <br />
+                  Electronic <br />
                   <span>bikes.</span>
                 </h3>
                 <p>Maintained, secure, and ready to ride. Flexible plans tailored for student terms.</p>
@@ -129,7 +129,7 @@ export default async function HomePage() {
                 </div>
               </div>
               <div className="fh-service-image fh-bike-image">
-                <img src="/images/engwe-m20.jpg" alt="Student bike" />
+                <img src="/images/engwe-m20.jpg" alt="Electronic bike" />
               </div>
               <div className="fh-service-card-bottom">
                 <span>
@@ -195,19 +195,19 @@ export default async function HomePage() {
           <div className="fh-journey-line">
             <div className="fh-journey-node active">
               <span>01</span>
-              <small>Arrive</small>
+              <small>Apply</small>
             </div>
             <div className="fh-journey-node">
               <span>02</span>
-              <small>Choose</small>
+              <small>Visit</small>
             </div>
             <div className="fh-journey-node">
               <span>03</span>
-              <small>Move</small>
+              <small>Register</small>
             </div>
             <div className="fh-journey-node">
               <span>04</span>
-              <small>Settle</small>
+              <small>Track</small>
             </div>
           </div>
         </ScrollReveal>
@@ -245,8 +245,8 @@ export default async function HomePage() {
                 </div>
                 <div className="fh-step-no">01</div>
                 <div>
-                  <h3>Choose your essentials</h3>
-                  <p>Pick your bike rental plan, browse verified student apartments, or request both together.</p>
+                  <h3>Apply</h3>
+                  <p>Send a request for a room or e-bike and we’ll confirm availability and what to do next.</p>
                 </div>
               </div>
               <div className="fh-process-step">
@@ -255,8 +255,8 @@ export default async function HomePage() {
                 </div>
                 <div className="fh-step-no">02</div>
                 <div>
-                  <h3>Book &amp; sign digitally</h3>
-                  <p>Complete your agreement on your phone with zero paperwork and secure local payment verification.</p>
+                  <h3>Visit</h3>
+                  <p>Choose a convenient time to tour the room or pick up your e-bike.</p>
                 </div>
               </div>
               <div className="fh-process-step">
@@ -265,8 +265,8 @@ export default async function HomePage() {
                 </div>
                 <div className="fh-step-no">03</div>
                 <div>
-                  <h3>Move in &amp; ride</h3>
-                  <p>Collect your ready bike and receive your room keys. 24/7 student support throughout your stay in Vilnius.</p>
+                  <h3>Register</h3>
+                  <p>Sign your rental agreement, make your payment and create your Hub account.</p>
                 </div>
               </div>
               <div className="fh-process-step">
@@ -275,8 +275,8 @@ export default async function HomePage() {
                 </div>
                 <div className="fh-step-no">04</div>
                 <div>
-                  <h3>Settle with support</h3>
-                  <p>Use your dashboard for contracts, payments, renewals, and support whenever you need help.</p>
+                  <h3>Track</h3>
+                  <p>Manage your rental, view payments and receive reminders and important updates in your account.</p>
                 </div>
               </div>
             </ScrollReveal>
@@ -303,29 +303,29 @@ export default async function HomePage() {
                 <div className="fh-value-icon">
                   <Tag size={16} />
                 </div>
-                <h3>No hidden fees</h3>
-                <p>Clear bike rental rates and transparent apartment utilities. No unexpected move-out fees or deposit surprises.</p>
+                <h3>No Hidden Fees</h3>
+                <p>Clear rental prices and transparent costs, with no unexpected charges.</p>
               </div>
               <div className="fh-value">
                 <div className="fh-value-icon">
                   <Key size={16} />
                 </div>
-                <h3>Digital contracts</h3>
-                <p>Everything is signed electronically from anywhere before you land, with permanent access in your dashboard.</p>
+                <h3>Simple Process</h3>
+                <p>Request what you need, visit, sign your agreement, pay, and you’re ready to go.</p>
               </div>
               <div className="fh-value">
                 <div className="fh-value-icon">
                   <ShieldCheck size={16} />
                 </div>
-                <h3>Verified &amp; maintained</h3>
-                <p>Bikes are safety-checked and repaired for free; apartments are vetted for clean, comfortable student living.</p>
+                <h3>Reliable Service</h3>
+                <p>Clean shared rooms and well-maintained e-bikes, ready when you need them.</p>
               </div>
               <div className="fh-value">
                 <div className="fh-value-icon">
                   <Headphones size={16} />
                 </div>
-                <h3>Local human support</h3>
-                <p>Direct WhatsApp assistance with our team in Vilnius for fast, friendly help whenever you need it.</p>
+                <h3>Local Support</h3>
+                <p>Need help? Our Vilnius team is available on WhatsApp whenever you need us.</p>
               </div>
             </ScrollReveal>
           </div>

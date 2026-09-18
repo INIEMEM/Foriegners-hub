@@ -18,6 +18,7 @@ import {
   MapPin,
   Shield,
   HelpCircle,
+  ChevronDown,
 } from "lucide-react";
 import BikeRequestModal from "./BikeRequestModal";
 import { BikesPlayfulDecorations } from "@/components/ui/PlayfulDecorations";
@@ -115,6 +116,15 @@ export default function BikePageView({ siteSettings = {}, currentUser = null }) 
   const [modalOpen, setModalOpen] = useState(false);
   const [preselectedPlan, setPreselectedPlan] = useState("weekly");
 
+  const [openFeatureIndices, setOpenFeatureIndices] = useState({ 0: true });
+
+  function toggleFeature(idx) {
+    setOpenFeatureIndices((prev) => ({
+      ...prev,
+      [idx]: !prev[idx],
+    }));
+  }
+
   function openRequestModal(plan = "weekly") {
     setPreselectedPlan(plan);
     setModalOpen(true);
@@ -169,12 +179,13 @@ export default function BikePageView({ siteSettings = {}, currentUser = null }) 
                   }}
                 >
                   <img
-                    src="/images/engwe-m20.jpg"
-                    alt="Foreigners Hub City Rental Bike"
+                    src="/images/courier-ebikes.jpg"
+                    alt="Foreigners Hub E-Bikes for Courier Work"
                     style={{
                       width: "100%",
-                      height: "230px",
+                      height: "260px",
                       objectFit: "cover",
+                      objectPosition: "center 42%",
                       display: "block",
                     }}
                   />
@@ -212,8 +223,8 @@ export default function BikePageView({ siteSettings = {}, currentUser = null }) 
               <h1
                 className="!text-[26px] sm:!text-[29px] md:!text-[clamp(34px,5vw,50px)] !font-bold md:!font-extrabold leading-[1.22] md:leading-[1.18] text-slate-900 mb-3.5 md:mb-[18px]"
               >
-                A reliable city bike, <br />
-                <span style={{ color: "#315cff" }}>assigned just for you.</span>
+                A reliable e-bike <br />
+                <span style={{ color: "#315cff" }}>for courier work</span>
               </h1>
 
               <p
@@ -225,7 +236,7 @@ export default function BikePageView({ siteSettings = {}, currentUser = null }) 
                   maxWidth: "500px",
                 }}
               >
-                Reliable city commuting in Vilnius made simple. Every bike is fully serviced, equipped with all essentials, and backed by personal support throughout your rental.
+                Reliable e-bikes for delivery work in Vilnius. Fully serviced, ready to work, and supported throughout your rental.
               </p>
 
               {/* Quick Feature Pills */}
@@ -306,12 +317,13 @@ export default function BikePageView({ siteSettings = {}, currentUser = null }) 
                 }}
               >
                 <img
-                  src="/images/engwe-m20.jpg"
-                  alt="Foreigners Hub City Rental Bike"
+                  src="/images/courier-ebikes.jpg"
+                  alt="Foreigners Hub E-Bikes for Courier Work"
                   style={{
                     width: "100%",
-                    height: "380px",
+                    height: "400px",
                     objectFit: "cover",
+                    objectPosition: "center 42%",
                     display: "block",
                   }}
                 />
@@ -354,15 +366,8 @@ export default function BikePageView({ siteSettings = {}, currentUser = null }) 
             </p>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-              gap: "24px",
-              maxWidth: "1100px",
-              margin: "0 auto",
-            }}
-          >
+          {/* Desktop Features Grid */}
+          <div className="fh-bike-features-desktop">
             {INCLUDED_FEATURES.map((item) => {
               const Icon = item.icon;
               return (
@@ -416,6 +421,100 @@ export default function BikePageView({ siteSettings = {}, currentUser = null }) 
                       {item.desc}
                     </p>
                   </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Mobile Collapsible Accordion Cards */}
+          <div className="fh-bike-features-mobile">
+            {INCLUDED_FEATURES.map((item, idx) => {
+              const Icon = item.icon;
+              const isOpen = !!openFeatureIndices[idx];
+              return (
+                <div
+                  key={item.title}
+                  style={{
+                    background: "#f8fafc",
+                    borderRadius: "16px",
+                    border: "1.5px solid",
+                    borderColor: isOpen ? "#93c5fd" : "#e2e8f0",
+                    overflow: "hidden",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleFeature(idx)}
+                    style={{
+                      width: "100%",
+                      padding: "14px 16px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "12px",
+                      background: "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                    aria-expanded={isOpen}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
+                      <div
+                        style={{
+                          width: "38px",
+                          height: "38px",
+                          borderRadius: "11px",
+                          background: isOpen ? "#eff6ff" : "#ffffff",
+                          border: "1px solid",
+                          borderColor: isOpen ? "#bfdbfe" : "#e2e8f0",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#315cff",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <Icon size={19} />
+                      </div>
+                      <span
+                        style={{
+                          fontSize: "15px",
+                          fontWeight: 700,
+                          color: "#0f172a",
+                          lineHeight: 1.3,
+                        }}
+                      >
+                        {item.title}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                        transition: "transform 0.2s ease",
+                        color: isOpen ? "#315cff" : "#94a3b8",
+                        flexShrink: 0,
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      <ChevronDown size={18} />
+                    </div>
+                  </button>
+
+                  {isOpen && (
+                    <div
+                      style={{
+                        padding: "0 16px 14px 66px",
+                        fontSize: "13.5px",
+                        color: "#64748b",
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      {item.desc}
+                    </div>
+                  )}
                 </div>
               );
             })}
